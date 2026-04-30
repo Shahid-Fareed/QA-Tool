@@ -1,0 +1,52 @@
+{
+  "name": "qa-tool-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.64",
+    "@ai-sdk/groq": "^3.0.35",
+    "@ai-sdk/react": "^3.0.170",
+    "@types/file-saver": "^2.0.7",
+    "ai": "^6.0.158",
+    "clsx": "^2.1.1",
+    "docx": "^9.6.1",
+    "dotenv": "^17.4.2",
+    "file-saver": "^2.0.5",
+    "framer-motion": "^12.38.0",
+    "groq-sdk": "^1.1.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.8.0",
+    "mammoth": "^1.12.0",
+    "mongoose": "^9.4.1",
+    "next": "16.2.3",
+    "next-themes": "^0.4.6",
+    "pdf-parse": "^2.4.5",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.1",
+    "recharts": "^3.8.1",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

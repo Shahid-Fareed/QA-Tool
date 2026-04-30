@@ -1,0 +1,19 @@
+{
+  "name": "qa-tool",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm run dev --workspace=qa-tool-frontend",
+    "dev:backend": "npm run dev --workspace=qa-tool-backend",
+    "build": "npm run build --workspace=qa-tool-frontend",
+    "start": "npx concurrently \"npm run start --workspace=qa-tool-frontend\" \"npm run start --workspace=qa-tool-backend\""
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
