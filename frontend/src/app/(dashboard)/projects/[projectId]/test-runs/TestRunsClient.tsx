@@ -2,7 +2,7 @@
 import { apiClientFetch } from "@/lib/api-client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Play,
@@ -68,6 +68,9 @@ export default function TestRunsClient({
   const [modules, setModules] = useState<string[]>([]);
   const [testCases, setTestCases] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const autoModule = searchParams.get("module");
+  const autoSelected = searchParams.get("selected");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,12 +106,19 @@ export default function TestRunsClient({
     fetchData();
   }, [projectId]);
 
-  const handleModuleClick = (moduleId: string) => {
+  useEffect(() => {
+    if (loading || !autoModule || runs.length === 0) return;
+    handleModuleClick(autoModule, autoSelected || undefined);
+  }, [loading, autoModule, runs]);
+
+  const handleModuleClick = (moduleId: string, selectedId?: string) => {
     // Find the latest run for this module (already sorted by createdAt -1)
     const latestRun = runs.find((r) => (r as any).moduleId === moduleId);
 
     if (latestRun) {
-      router.push(`/projects/${projectId}/test-runs/${latestRun._id}`);
+      router.replace(
+        `/projects/${projectId}/test-runs/${latestRun._id}${selectedId ? `?selected=${selectedId}` : ""}`,
+      );
       return;
     }
 
@@ -124,7 +134,9 @@ export default function TestRunsClient({
         setError(data.error || "Failed to create run");
         return;
       }
-      router.push(`/projects/${projectId}/test-runs/${data._id}`);
+      router.replace(
+        `/projects/${projectId}/test-runs/${data._id}${selectedId ? `?selected=${selectedId}` : ""}`,
+      );
     });
   };
 

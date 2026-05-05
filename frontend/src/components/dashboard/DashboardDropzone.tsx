@@ -153,10 +153,7 @@ export const DashboardDropzone: React.FC<DashboardDropzoneProps> = ({
             {isProcessing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <>
-                Send
-                <ArrowRight className="w-4 h-4" />
-              </>
+              <ArrowRight className="w-5 h-5" />
             )}
           </button>
         </div>

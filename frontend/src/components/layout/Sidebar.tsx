@@ -373,6 +373,15 @@ export function Sidebar({
               </HistorySection>
             )}
 
+            <NavLink
+              href="/?mode=chat"
+              label="Chat"
+              icon={MessageSquare}
+              isActive={searchParams.get("mode") === "chat"}
+              isCollapsed={effectiveCollapsed}
+              onClick={onClose}
+            />
+
             {hasPermission(role, "read:projects", customPermissions) && (
               <NavLink
                 href="/projects"

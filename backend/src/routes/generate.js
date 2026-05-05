@@ -19,6 +19,21 @@ router.post(
   generateController.generateProject,
 );
 
+// NEW: Stream a Markdown QA analysis report from an uploaded file
+router.post(
+  "/report",
+  requireAuth,
+  upload.single("file"),
+  generateController.generateReport,
+);
+
+// NEW: Convert Markdown to DOCX and stream back for download
+router.post(
+  "/download-docx",
+  requireAuth,
+  generateController.downloadDocx,
+);
+
 router.post(
   "/:testCaseId/generate-script",
   requireAuth,

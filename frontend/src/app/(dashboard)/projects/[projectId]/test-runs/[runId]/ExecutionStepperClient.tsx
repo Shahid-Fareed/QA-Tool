@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { apiClientFetch } from "@/lib/api-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -233,6 +233,8 @@ export default function ExecutionStepperClient({
   const [actualResult, setActualResult] = useState("");
   const [saving, setSaving] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const searchParams = useSearchParams();
+  const selectedTCId = searchParams.get("selected");
 
   // ── Multi-select state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -281,6 +283,20 @@ export default function ExecutionStepperClient({
     setRun(data);
     setLoading(false);
 
+    // Auto-jump logic
+    if (selectedTCId) {
+      const selectedIdx = data.executions?.findIndex(
+        (e: any) =>
+          (typeof e.testCaseId === "object"
+            ? e.testCaseId._id
+            : e.testCaseId) === selectedTCId,
+      );
+      if (selectedIdx >= 0) {
+        setActiveIdx(selectedIdx);
+        return;
+      }
+    }
+
     // Only auto-jump to first untested if the run is NOT completed
     if (data.status !== "Completed") {
       const firstUntested = data.executions?.findIndex(
@@ -288,7 +304,7 @@ export default function ExecutionStepperClient({
       );
       if (firstUntested >= 0) setActiveIdx(firstUntested);
     }
-  }, [runId]);
+  }, [runId, selectedTCId]);
 
   useEffect(() => {
     fetchRun();

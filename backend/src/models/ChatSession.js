@@ -20,6 +20,7 @@ const ChatSessionSchema = new mongoose.Schema(
         role: { type: String, enum: ["user", "ai"], required: true },
         text: { type: String, required: true },
         projectId: { type: String, default: null }, // Link to generated project
+        isReport: { type: Boolean, default: false }, // Flag for QA Analysis Reports
         type: { type: String, default: "text" }, // text, analysis, error
         data: { type: mongoose.Schema.Types.Mixed }, // project metadata if generated
         createdAt: { type: Date, default: Date.now },

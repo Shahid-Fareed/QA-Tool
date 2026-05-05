@@ -37,7 +37,7 @@
   --sidebar-bg: rgba(248, 250, 252, 0.95);
   --sidebar-border: rgba(15, 23, 42, 0.1);
   --card-gradient: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
-  --nav-item-text: #64748B;
+  --nav-item-text: #475569;
   --nav-item-hover-text: #0F172A;
   --nav-item-hover-bg: #F1F5F9;
   --text-muted: #64748B;
@@ -58,11 +58,11 @@
   --sidebar-bg: rgba(5, 5, 5, 0.85);
   --sidebar-border: rgba(255, 255, 255, 0.05);
   --card-gradient: linear-gradient(145deg, #111111 0%, #050505 100%);
-  --nav-item-text: rgba(255, 255, 255, 0.4);
+  --nav-item-text: rgba(255, 255, 255, 0.6);
   --nav-item-hover-text: #ffffff;
-  --nav-item-hover-bg: rgba(255, 255, 255, 0.05);
-  --text-muted: rgba(255, 255, 255, 0.6);
-  --muted-foreground: #94A3B8;
+  --nav-item-hover-bg: rgba(255, 255, 255, 0.1);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --muted-foreground: #CBD5E1;
   --border: rgba(255, 255, 255, 0.05);
   --scrollbar-track: #050505;
   --scrollbar-thumb: #222;

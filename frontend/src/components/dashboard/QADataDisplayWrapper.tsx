@@ -13,7 +13,15 @@ import {
   LineChart,
 } from "lucide-react";
 
-export function QADataDisplayWrapper({ userName }: { userName: string }) {
+export function QADataDisplayWrapper({
+  userName,
+  canWrite,
+  userId,
+}: {
+  userName: string;
+  canWrite: boolean;
+  userId: string;
+}) {
   const { generate, isGenerating, output, error, projectId, projectName } =
     useCaseGenerator();
   const searchParams = useSearchParams();
@@ -21,11 +29,21 @@ export function QADataDisplayWrapper({ userName }: { userName: string }) {
   const sessionId = searchParams.get("sessionId");
   const mode = searchParams.get("mode");
   const [isChatMode, setIsChatMode] = React.useState(mode === "chat");
+  const [mounted, setMounted] = React.useState(false);
 
-  // Sync state with URL mode param
+  const STORAGE_KEY = `welcome-hidden-${userId}`;
+
+  // Sync state with URL mode param and localStorage
   React.useEffect(() => {
-    setIsChatMode(mode === "chat");
-  }, [mode]);
+    const hasSeenWelcome = localStorage.getItem(STORAGE_KEY) === "true";
+    // If user has no write permission, skip the welcome splash card entirely
+    if (mode === "chat" || hasSeenWelcome || !canWrite) {
+      setIsChatMode(true);
+    } else {
+      setIsChatMode(false);
+    }
+    setMounted(true);
+  }, [mode, canWrite, STORAGE_KEY]);
 
   // Notify chat when generation is complete
   React.useEffect(() => {
@@ -51,6 +69,8 @@ export function QADataDisplayWrapper({ userName }: { userName: string }) {
       );
     }
   }, [error, isChatMode]);
+
+  if (!mounted) return null;
 
   // Determine if we should show the welcome header
   const showHeader = !sessionId && !output && !isGenerating && !isChatMode;
@@ -131,6 +151,7 @@ export function QADataDisplayWrapper({ userName }: { userName: string }) {
             onFileSelect={handleFileSelect}
             isProcessing={isGenerating}
             onBack={() => router.push("/")}
+            canWrite={canWrite}
           />
         ) : (
           <div className="animate-in fade-in zoom-in slide-in-from-bottom-6 duration-700">
@@ -154,7 +175,10 @@ export function QADataDisplayWrapper({ userName }: { userName: string }) {
                 </div>
 
                 <button
-                  onClick={() => router.push("/?mode=chat")}
+                  onClick={() => {
+                    localStorage.setItem(STORAGE_KEY, "true");
+                    router.push("/?mode=chat");
+                  }}
                   className="group flex items-center gap-4 px-8 py-3.5 rounded-xl bg-brand text-white font-semibold text-[13px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   <MessageSquare className="w-4 h-4" />

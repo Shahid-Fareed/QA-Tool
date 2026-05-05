@@ -19,7 +19,14 @@ async function extractTextFromBuffer(buffer, fileType) {
     ) {
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
-    } else if (fileType === "text/plain") {
+    } else if (
+      fileType.startsWith("text/") ||
+      fileType === "application/javascript" ||
+      fileType === "application/x-javascript" ||
+      fileType === "application/typescript" ||
+      fileType === "application/x-typescript" ||
+      fileType === "application/json"
+    ) {
       return buffer.toString("utf-8");
     }
     throw new Error(`Unsupported file type: ${fileType}`);

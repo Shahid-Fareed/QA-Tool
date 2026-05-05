@@ -1,8 +1,68 @@
 const { generateText } = require("ai");
 const dbConnect = require("../db");
 const ChatSession = require("../models/ChatSession");
-const { ASSISTANT_SYSTEM_PROMPT } = require("../lib/prompts");
-const { getNextGroqClient, fetchWithRetry } = require("../services/aiService");
+const {
+  ASSISTANT_SYSTEM_PROMPT,
+  INLINE_GENERATION_PROMPT,
+} = require("../lib/prompts");
+const { getNextGroqClient, fetchWithRetry, safeParseJSON } = require("../services/aiService");
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Builds a markdown table from inline-generation JSON rows.
+ * Returns the table string, ready to be sent as a chat message.
+ */
+function buildMarkdownTable(parsed) {
+  const { type, subject, rows } = parsed;
+
+  if (!rows || !Array.isArray(rows) || rows.length === 0) {
+    return `No data was generated for "${subject}".`;
+  }
+
+  if (type === "testcase") {
+    const header =
+      `| Test Case ID | Module | Title | Preconditions | Steps | Expected Result | Priority |\n` +
+      `|---|---|---|---|---|---|---|\n`;
+    const body = rows
+      .map(
+        (r) =>
+          `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.preconditions || ""} | ${r.steps || ""} | ${r.expectedResult || ""} | ${r.priority || ""} |`
+      )
+      .join("\n");
+    return `### Test Cases — ${subject}\n\n${header}${body}`;
+  }
+
+  if (type === "bugreport") {
+    const header =
+      `| Bug ID | Module | Title | Description | Steps to Reproduce | Expected Result | Actual Result | Severity |\n` +
+      `|---|---|---|---|---|---|---|---|\n`;
+    const body = rows
+      .map(
+        (r) =>
+          `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.description || ""} | ${r.stepsToReproduce || ""} | ${r.expectedResult || ""} | ${r.actualResult || ""} | ${r.severity || ""} |`
+      )
+      .join("\n");
+    return `### Bug Reports — ${subject}\n\n${header}${body}`;
+  }
+
+  if (type === "usecase") {
+    const header =
+      `| Use Case ID | Module | Use Case Name | Actor | Description | Preconditions | Main Flow | Alternate Flow |\n` +
+      `|---|---|---|---|---|---|---|---|\n`;
+    const body = rows
+      .map(
+        (r) =>
+          `| ${r.id || ""} | ${r.module || ""} | ${r.name || ""} | ${r.actor || ""} | ${r.description || ""} | ${r.preconditions || ""} | ${r.mainFlow || ""} | ${r.alternateFlow || ""} |`
+      )
+      .join("\n");
+    return `### Use Cases — ${subject}\n\n${header}${body}`;
+  }
+
+  return `Generated data for "${subject}" (unknown type).`;
+}
+
+// ─── Controllers ────────────────────────────────────────────────────────────
 
 exports.chat = async (req, res) => {
   try {
@@ -36,19 +96,22 @@ exports.chat = async (req, res) => {
         model: groq("llama-3.3-70b-versatile"),
         system: ASSISTANT_SYSTEM_PROMPT,
         messages: [...chatHistory, { role: "user", content: message }],
-      }),
+      })
     );
 
     let aiResponse = text.trim();
     let action = "none";
     let triggerInfo = null;
 
+    // ── Try to detect a JSON trigger ──────────────────────────────────────
     try {
       const jsonStart = aiResponse.indexOf("{");
       const jsonEnd = aiResponse.lastIndexOf("}");
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         const potentialJson = aiResponse.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(potentialJson);
+
+        // ── Path A: Full project generation (file-based) ──────────────────
         if (parsed.action === "generate") {
           action = "generate";
           triggerInfo = {
@@ -58,8 +121,40 @@ exports.chat = async (req, res) => {
           aiResponse =
             parsed.text || `Starting generation for ${parsed.moduleName}...`;
         }
+
+        // ── Path B: Inline table generation (text-only) ───────────────────
+        else if (parsed.action === "inline-generate") {
+          action = "inline-generate";
+          const artifactType = parsed.artifactType || "testcase";
+          const subject = parsed.subject || "Module";
+
+          const inlineText =
+            parsed.text || `Generating ${artifactType} table for ${subject}...`;
+
+          // Call AI a second time to get the structured table data
+          const groq2 = getNextGroqClient();
+          const { text: tableText } = await fetchWithRetry(() =>
+            generateText({
+              model: groq2("llama-3.3-70b-versatile"),
+              system: INLINE_GENERATION_PROMPT(artifactType, subject),
+              prompt: `Generate a ${artifactType} table for: ${subject}`,
+              temperature: 0.3,
+              maxOutputTokens: 8192,
+            })
+          );
+
+          // Parse the structured JSON and convert to a markdown table
+          const tableJson = safeParseJSON(tableText);
+          if (tableJson && tableJson.rows) {
+            aiResponse = buildMarkdownTable(tableJson);
+          } else {
+            aiResponse = `I could not generate a table for "${subject}". Please try again with a more specific description.`;
+          }
+        }
       }
-    } catch (err) {}
+    } catch (err) {
+      // If JSON parsing fails, treat as plain text response — no-op
+    }
 
     session.messages.push({ role: "user", text: message });
     session.messages.push({ role: "ai", text: aiResponse });
@@ -103,7 +198,7 @@ exports.renameSession = async (req, res) => {
     const session = await ChatSession.findOneAndUpdate(
       { _id: sessionId, userId },
       { title },
-      { new: true },
+      { new: true }
     );
     if (!session) return res.status(404).json({ error: "Session not found" });
     return res.json(session);
@@ -162,7 +257,8 @@ exports.appendMessages = async (req, res) => {
       // Create a new session — use the first user message text as the title
       const firstUserMsg = messages.find((m) => m.role === "user");
       const title = firstUserMsg
-        ? firstUserMsg.text.substring(0, 40) + (firstUserMsg.text.length > 40 ? "..." : "")
+        ? firstUserMsg.text.substring(0, 40) +
+          (firstUserMsg.text.length > 40 ? "..." : "")
         : "New Conversation";
       session = new ChatSession({ userId, title, messages: [] });
     }
@@ -173,6 +269,7 @@ exports.appendMessages = async (req, res) => {
         role: msg.role,
         text: msg.text,
         projectId: msg.projectId || null,
+        isReport: msg.isReport || false,
         type: msg.type || "text",
       });
     }

@@ -18,6 +18,7 @@ import {
   Search,
   Plus,
   Camera,
+  Play,
 } from "lucide-react";
 import Link from "next/link";
 import { ColumnDef, ResourceStats, CurrentUser } from "@/lib/types";
@@ -329,7 +330,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                   }
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-surface transition-all cursor-pointer ${activeStatus ? "border-brand/40 ring-1 ring-brand/10" : "border-border hover:border-brand/30"}`}
                 >
-                  <span className="text-xs font-semibold text-foreground/70">
+                  <span className="text-xs font-semibold text-foreground/80">
                     {activeStatus || "Status"}
                   </span>
                   {activeStatus && (
@@ -344,7 +345,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                     </button>
                   )}
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-foreground/30 transition-transform ${activeDropdown === "status" ? "rotate-180" : ""}`}
+                    className={`w-3.5 h-3.5 text-foreground/50 transition-transform ${activeDropdown === "status" ? "rotate-180" : ""}`}
                   />
                 </div>
 
@@ -440,7 +441,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${opt.color}`} />
                         <span
-                          className={`text-xs font-semibold ${activeStatus === opt.value ? "text-brand" : "text-foreground/70"}`}
+                          className={`text-xs font-semibold ${activeStatus === opt.value ? "text-brand" : "text-foreground/80"}`}
                         >
                           {opt.label}
                         </span>
@@ -470,7 +471,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       className={`w-2 h-2 rounded-full ${activePriority === "high" ? "bg-red-500" : activePriority === "medium" ? "bg-foreground/40" : "bg-cyan-400"}`}
                     />
                   )}
-                  <span className="text-xs font-semibold text-foreground/70 capitalize">
+                  <span className="text-xs font-semibold text-foreground/80 capitalize">
                     {activePriority || "Priority"}
                   </span>
                   {activePriority && (
@@ -485,7 +486,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                     </button>
                   )}
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-foreground/30 transition-transform ${activeDropdown === "priority" ? "rotate-180" : ""}`}
+                    className={`w-3.5 h-3.5 text-foreground/50 transition-transform ${activeDropdown === "priority" ? "rotate-180" : ""}`}
                   />
                 </div>
 
@@ -517,7 +518,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${opt.color}`} />
                         <span
-                          className={`text-xs font-semibold ${activePriority === opt.value ? "text-brand" : "text-foreground/70"}`}
+                          className={`text-xs font-semibold ${activePriority === opt.value ? "text-brand" : "text-foreground/80"}`}
                         >
                           {opt.label}
                         </span>
@@ -547,7 +548,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                 placeholder="Search overview..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-brand/40 transition-all shadow-sm placeholder:text-foreground/20"
+                className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-brand/40 transition-all shadow-sm placeholder:text-foreground/50"
               />
             </div>
 
@@ -577,7 +578,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
 
       <div className="spatial-card rounded-xl overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-surface text-[10px] uppercase font-semibold text-foreground/70 tracking-wider font-mono">
+          <thead className="bg-surface text-[10px] uppercase font-semibold text-foreground/80 tracking-wider font-mono">
             <tr>
               {isOverview ? (
                 <>
@@ -955,7 +956,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                                     </option>
                                   ))}
                                 </select>
-                                <span className="text-foreground font-medium text-sm hover:text-brand transition-colors whitespace-nowrap">
+                                <span className="text-foreground/90 font-medium text-sm hover:text-brand transition-colors whitespace-nowrap">
                                   {item.assigneeName || "Unassigned"}
                                 </span>
                               </div>
@@ -985,7 +986,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-4 py-4 font-mono text-xs text-foreground/70"
+                            className="px-4 py-4 font-mono text-xs text-foreground/80"
                           >
                             <div className="flex items-center gap-2">
                               {val}
@@ -1016,6 +1017,21 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                     {(canEdit || canDelete) && (
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1 transition-opacity">
+                          {canEdit && itemType === "test-cases" && (
+                            <Tooltip content="Run Test Case">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(
+                                    `/projects/${projectId}/test-runs?module=${item.moduleId}&selected=${item._id}`,
+                                  );
+                                }}
+                                className="p-1.5 rounded-md hover:bg-brand/10 text-foreground/60 hover:text-brand"
+                              >
+                                <Play className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          )}
                           {canEdit && (
                             <Tooltip content="Edit Item">
                               <button
