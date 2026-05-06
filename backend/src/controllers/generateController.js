@@ -77,6 +77,15 @@ exports.generateProject = async (req, res) => {
           }
 
           const { project, modules } = discoveryData;
+
+          // Programmatic Failsafe: Ensure at least one module is dedicated to UI/UX and visual issues
+          const hasUIModule = modules.some((m) =>
+            /ui|ux|user interface|styling|visual|responsiveness/i.test(m),
+          );
+          if (!hasUIModule) {
+            modules.push("UI Issues & Responsiveness");
+          }
+
           await dbConnect();
           const newProject = await Project.create({
             projectName: project.name,
@@ -316,6 +325,24 @@ You MUST strictly follow this exact structure:
 ## WHAT THE CODEBASE GETS RIGHT
 [Provide a bulleted list of 3-4 positive architectural or security patterns observed].`;
 
+    const testCasesPrompt = `You are a Senior QA Architect. Analyze the provided requirements or documentation and generate a highly detailed, professional 'Comprehensive Test Cases Document' in Markdown.
+
+You MUST strictly generate ONLY the following structure:
+- DO NOT include CSS <style> tags in your output.
+- Focus entirely on creating a comprehensive, high-quality test cases table that covers all functional areas, happy paths, negative paths, and boundary conditions.
+- CRITICAL: NEVER use actual newlines (line breaks) inside any markdown table cell. If steps, preconditions, or expected results have multiple lines/steps, you MUST use HTML <br /> tags to separate them instead of a new line. Actual newlines will break markdown table rendering completely.
+
+# [Project Name] Comprehensive Test Cases
+
+**Test Suite Overview**
+[Provide a detailed paragraph explaining the coverage, objectives, and test strategy for this suite].
+
+| Test Case ID | Module | Title | Preconditions | Steps | Expected Result | Priority |
+|---|---|---|---|---|---|---|
+| TC-001 | [Module Name] | [Descriptive Title] | [Preconditions] | 1. Step one <br /> 2. Step two | [Expected outcome] | HIGH |
+
+*(Provide a comprehensive, extensive list of test cases spanning all requirements and edge cases).*`;
+
     const models = [
       "llama-3.3-70b-versatile",
       "mixtral-8x7b-32768",
@@ -325,7 +352,12 @@ You MUST strictly follow this exact structure:
     let result;
     for (const modelId of models) {
       try {
-        const basePrompt = reportType === "code" ? codePrompt : docPrompt;
+        let basePrompt = docPrompt;
+        if (reportType === "code") {
+          basePrompt = codePrompt;
+        } else if (reportType === "testcases") {
+          basePrompt = testCasesPrompt;
+        }
         const systemPrompt = `${basePrompt}\n\nCRITICAL: DO NOT include any internal CSS, font-sizes, or styling rules in your output. Ignore the 'downloadDocx' styling logic entirely.`;
         result = streamText({
           model: groq(modelId),

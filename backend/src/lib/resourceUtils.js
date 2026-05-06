@@ -38,8 +38,14 @@ async function fetchPaginatedResource({
   if (isOverview) {
     const moduleAggregation = await model.aggregate([
       { $match: { projectId: projectObjectId } },
-      { $group: { _id: "$moduleId", totalItems: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
+      {
+        $group: {
+          _id: "$moduleId",
+          totalItems: { $sum: 1 },
+          minCustomId: { $min: "$customId" },
+        },
+      },
+      { $sort: { minCustomId: 1 } },
     ]);
 
     totalPages = Math.max(

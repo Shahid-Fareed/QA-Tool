@@ -1,6 +1,5 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { Camera, Sparkles, Zap } from "lucide-react";
 import { VisualReporterClient } from "@/components/projects/VisualReporterClient";
 import { apiFetch } from "@/lib/api-server";
 

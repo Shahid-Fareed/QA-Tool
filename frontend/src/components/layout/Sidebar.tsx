@@ -62,6 +62,7 @@ export function Sidebar({
   const [isMounted, setIsMounted] = useState(false);
   const [sessions, setSessions] = useState<CodeAuditSession[]>([]);
   const [assistantHistory, setAssistantHistory] = useState<any[]>([]);
+  const [showAllAssistant, setShowAllAssistant] = useState(false);
   const [editingAssistantId, setEditingAssistantId] = useState<string | null>(
     null,
   );
@@ -331,7 +332,10 @@ export function Sidebar({
               icon={LayoutDashboard}
               isActive={isActive("/")}
               isCollapsed={effectiveCollapsed}
-              onClick={onClose}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("new-chat"));
+                if (onClose) onClose();
+              }}
             />
 
             {!isProjectDetail && assistantHistory.length > 0 && (
@@ -341,7 +345,10 @@ export function Sidebar({
                 onToggle={() => setIsAssistantExpanded(!isAssistantExpanded)}
                 isCollapsed={effectiveCollapsed}
               >
-                {assistantHistory.slice(0, 5).map((session) => (
+                {(showAllAssistant
+                  ? assistantHistory
+                  : assistantHistory.slice(0, 5)
+                ).map((session) => (
                   <HistoryItem
                     key={session._id}
                     id={session._id!}
@@ -370,6 +377,19 @@ export function Sidebar({
                     onClick={onClose}
                   />
                 ))}
+                {!effectiveCollapsed && assistantHistory.length > 5 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAllAssistant(!showAllAssistant);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-1 rounded-xl bg-brand/5 border border-dashed border-brand/15 hover:border-brand/35 text-brand text-[10px] font-bold uppercase tracking-widest hover:bg-brand/10 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                  >
+                    {showAllAssistant
+                      ? "Show Less"
+                      : `Show More (${assistantHistory.length - 5} more)`}
+                  </button>
+                )}
               </HistorySection>
             )}
 

@@ -223,7 +223,7 @@ export default function LoginPage() {
               id="login-submit"
               type="submit"
               disabled={isPending}
-              className="w-full py-3 rounded-xl text-sm font-semibold bg-brand text-surface border border-brand hover:bg-brand/90 hover:shadow-[0_0_30px_-5px_rgba(0,229,255,0.6)] active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2 mt-4"
+              className="w-full py-3 rounded-xl text-sm font-semibold bg-brand/80 text-surface border border-brand/80 hover:bg-brand hover:border-brand hover:shadow-[0_0_30px_-5px_rgba(0,229,255,0.6)] active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2 mt-4"
             >
               {isPending ? (
                 <>

@@ -220,7 +220,7 @@ export default function StatusConfigsPage() {
               }
               setIsAdding(!isAdding);
             }}
-            className="flex items-center gap-2 px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 active:scale-95 whitespace-nowrap"
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand/80 hover:bg-brand text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-brand/10 active:scale-95 whitespace-nowrap"
           >
             {isAdding ? <X size={18} /> : <Plus size={18} />}
             {isAdding ? "Cancel" : "Add Status"}
@@ -337,7 +337,7 @@ export default function StatusConfigsPage() {
                   <button
                     onClick={handleAddStatus}
                     disabled={isSaving || !newName.trim()}
-                    className="px-8 py-2.5 bg-brand text-white text-[10px] font-semibold uppercase tracking-[0.15em] rounded-xl hover:bg-brand-hover transition-all shadow-lg active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
+                    className="px-8 py-2.5 bg-brand/80 hover:bg-brand text-white text-[10px] font-semibold uppercase tracking-[0.15em] rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
                   >
                     {isSaving && <Loader2 size={12} className="animate-spin" />}
                     {editingConfig ? "Update" : "Save"}

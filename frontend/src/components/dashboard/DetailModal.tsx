@@ -201,17 +201,31 @@ const DetailModal: React.FC<DetailModalProps> = ({
                   >
                     {itemType === "test-cases" ? (
                       <>
-                        <option value="Pending" className="bg-surface">Pending</option>
-                        <option value="Passed" className="bg-surface">Passed</option>
-                        <option value="Failed" className="bg-surface">Failed</option>
+                        <option value="Pending" className="bg-surface">
+                          Pending
+                        </option>
+                        <option value="Passed" className="bg-surface">
+                          Passed
+                        </option>
+                        <option value="Failed" className="bg-surface">
+                          Failed
+                        </option>
                       </>
                     ) : (
                       <>
-                        {!localData.status && <option value="" className="bg-surface">None</option>}
+                        {!localData.status && (
+                          <option value="" className="bg-surface">
+                            None
+                          </option>
+                        )}
                         {customStatuses
                           .filter((c) => c.resourceType === "bugs")
                           .map((c) => (
-                            <option key={c._id} value={c.name} className="bg-surface">
+                            <option
+                              key={c._id}
+                              value={c.name}
+                              className="bg-surface"
+                            >
                               {c.name}
                             </option>
                           ))}
@@ -238,10 +252,18 @@ const DetailModal: React.FC<DetailModalProps> = ({
                     }
                     className="w-full bg-brand/5 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-brand/40 transition-all disabled:opacity-50 appearance-none cursor-pointer"
                   >
-                    <option value="Low" className="bg-surface">Low</option>
-                    <option value="Medium" className="bg-surface">Medium</option>
-                    <option value="High" className="bg-surface">High</option>
-                    <option value="Critical" className="bg-surface">Critical</option>
+                    <option value="Low" className="bg-surface">
+                      Low
+                    </option>
+                    <option value="Medium" className="bg-surface">
+                      Medium
+                    </option>
+                    <option value="High" className="bg-surface">
+                      High
+                    </option>
+                    <option value="Critical" className="bg-surface">
+                      Critical
+                    </option>
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40 pointer-events-none" />
                 </div>
@@ -340,7 +362,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
                         }
                         className="w-full bg-brand/5 border border-border rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none appearance-none"
                       >
-                        <option value="" className="bg-surface">None</option>
+                        <option value="" className="bg-surface">
+                          None
+                        </option>
                         {linkedData
                           ?.filter((uc) => {
                             if (!uc.moduleId || !localData.moduleId)
@@ -365,7 +389,11 @@ const DetailModal: React.FC<DetailModalProps> = ({
                             );
                           })
                           .map((uc) => (
-                            <option key={uc._id} value={uc.customId} className="bg-surface">
+                            <option
+                              key={uc._id}
+                              value={uc.customId}
+                              className="bg-surface"
+                            >
                               {uc.customId}: {uc.title}
                             </option>
                           ))}
@@ -547,4 +575,3 @@ function canEditAnywhere(currentUser: CurrentUser | null) {
 }
 
 export default DetailModal;
-

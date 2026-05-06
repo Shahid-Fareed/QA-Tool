@@ -47,6 +47,26 @@ interface DashboardTableViewProps {
   serverStats?: ResourceStats;
 }
 
+const parseStyleString = (styleStr: string) => {
+  const styleObj: any = {};
+  if (!styleStr) return styleObj;
+  const styleMatch = styleStr.match(/style="([^"]+)"/);
+  if (styleMatch) {
+    styleMatch[1].split(";").forEach((s) => {
+      const parts = s.split(":");
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const val = parts.slice(1).join(":").trim();
+        if (key && val) {
+          const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+          styleObj[camelKey] = val;
+        }
+      }
+    });
+  }
+  return styleObj;
+};
+
 export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
   title,
   projectId,
@@ -243,7 +263,6 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
   };
 
   const isOverview = !activeModule && !activePriority && !activeStatus;
-  const effectiveLimit = isOverview ? 10 : 25;
 
   // Filter local data based on search query
   const filteredItems = data.filter((item) =>
@@ -427,9 +446,10 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       .map((s) => ({
                         label: s.name,
                         value: s.name,
-                        color: "bg-brand",
+                        color: "",
+                        style: parseStyleString(s.color),
                       })),
-                  ].map((opt, idx) => (
+                  ].map((opt: any, idx) => (
                     <button
                       key={`${opt.label}-${idx}`}
                       onClick={() => {
@@ -439,7 +459,18 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-brand/5 transition-colors group/item"
                     >
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${opt.color}`} />
+                        <div
+                          className={`w-2 h-2 rounded-full ${opt.color || ""}`}
+                          style={
+                            opt.style
+                              ? {
+                                  backgroundColor:
+                                    opt.style.color ||
+                                    opt.style.backgroundColor,
+                                }
+                              : undefined
+                          }
+                        />
                         <span
                           className={`text-xs font-semibold ${activeStatus === opt.value ? "text-brand" : "text-foreground/80"}`}
                         >
@@ -607,7 +638,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
-            {filteredItems.map((item, index) => (
+            {filteredItems.map((item) => (
               <tr
                 key={item._id || item.moduleId}
                 className="hover:bg-brand/5 transition-all cursor-pointer group"

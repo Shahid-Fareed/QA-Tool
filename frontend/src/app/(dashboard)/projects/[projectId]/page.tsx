@@ -8,7 +8,6 @@ import {
   Bug,
   Camera,
   Zap,
-  BarChart3,
   ShieldCheck,
   PenLine,
   Play,

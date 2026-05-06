@@ -1,24 +1,16 @@
 "use client";
 import { apiClientFetch } from "@/lib/api-client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Play,
-  PlusCircle,
   Loader2,
   CheckCircle2,
   Clock,
   ArrowLeft,
   ClipboardList,
-  Pencil,
-  Trash2,
-  X,
-  Check,
-  XCircle,
-  AlertTriangle,
-  Circle,
 } from "lucide-react";
 
 interface TestRun {
@@ -52,9 +44,6 @@ const statusConfig = {
 
 export default function TestRunsClient({
   projectId,
-  canWrite,
-  canEdit,
-  canDelete,
 }: {
   projectId: string;
   canWrite: boolean;
