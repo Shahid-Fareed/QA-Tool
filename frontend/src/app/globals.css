@@ -29,8 +29,8 @@
 :root {
   --background: #F8FAFC;
   --foreground: #0F172A;
-  --brand: #10d9b4;
-  --brand-muted: #0ba084;
+  --brand: #0da68a;
+  --brand-muted: #0a826c;
   --surface: #ffffff;
   --glass-bg: rgba(15, 23, 42, 0.03);
   --glass-border: rgba(15, 23, 42, 0.08);
@@ -50,8 +50,8 @@
 .dark {
   --background: #050505;
   --foreground: #ffffff;
-  --brand: #26f0c8;
-  --brand-muted: #10d9b4;
+  --brand: #10d9b4;
+  --brand-muted: #0da68a;
   --surface: #050505;
   --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.05);

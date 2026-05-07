@@ -429,6 +429,12 @@ export function QAAssistantChat({
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const frameId = requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+      return () => cancelAnimationFrame(frameId);
     }
   }, [messages, isTyping]);
 
@@ -837,7 +843,7 @@ export function QAAssistantChat({
         <>
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden p-8 space-y-8 scroll-smooth z-10 relative"
+            className="flex-1 overflow-y-auto overflow-x-hidden p-8 space-y-8 z-10 relative"
           >
             {loadingSession && (
               <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
@@ -1120,12 +1126,31 @@ export function QAAssistantChat({
                                     );
                                   }
 
+                                  const renderedChildren = React.Children.map(
+                                    children,
+                                    (child) => {
+                                      if (typeof child === "string") {
+                                        const parts =
+                                          child.split(/<br\s*\/?>/i);
+                                        if (parts.length > 1) {
+                                          return parts.map((part, index) => (
+                                            <React.Fragment key={index}>
+                                              {index > 0 && <br />}
+                                              {part}
+                                            </React.Fragment>
+                                          ));
+                                        }
+                                      }
+                                      return child;
+                                    },
+                                  );
+
                                   return (
                                     <td
                                       className="px-4 py-3 text-xs border-b border-border/10 last:border-0 text-foreground/80"
                                       {...props}
                                     >
-                                      {children}
+                                      {renderedChildren}
                                     </td>
                                   );
                                 },
