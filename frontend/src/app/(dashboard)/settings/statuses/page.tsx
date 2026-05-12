@@ -41,7 +41,7 @@ export default function StatusConfigsPage() {
   const [newName, setNewName] = useState("");
   const [hue, setHue] = useState(180);
   const [saturation, setSaturation] = useState(70);
-  const lightness = 50; // Fixed lightness for better consistency
+  const [lightness, setLightness] = useState(50);
 
   // Derive colors from HSL
   const baseColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
@@ -52,6 +52,30 @@ export default function StatusConfigsPage() {
   };
 
   const wheelRef = useRef<HTMLDivElement>(null);
+
+  const repeatTimeoutRef = useRef<any>(null);
+  const repeatIntervalRef = useRef<any>(null);
+
+  const startRepeat = (action: () => void) => {
+    stopRepeat();
+    action();
+    repeatTimeoutRef.current = setTimeout(() => {
+      repeatIntervalRef.current = setInterval(() => {
+        action();
+      }, 50);
+    }, 400);
+  };
+
+  const stopRepeat = () => {
+    if (repeatTimeoutRef.current) clearTimeout(repeatTimeoutRef.current);
+    if (repeatIntervalRef.current) clearInterval(repeatIntervalRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopRepeat();
+    };
+  }, []);
 
   useEffect(() => {
     fetchConfigs();
@@ -118,6 +142,9 @@ export default function StatusConfigsPage() {
       });
       if (res.ok) {
         setNewName("");
+        setHue(180);
+        setSaturation(70);
+        setLightness(50);
         setIsAdding(false);
         setEditingConfig(null);
         fetchConfigs();
@@ -131,11 +158,12 @@ export default function StatusConfigsPage() {
     setNewName(config.name);
     // Parse HSL from color string - supporting decimals for precision
     const hslMatch = config.color.match(
-      /hsla?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%/,
+      /hsla?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%/,
     );
     if (hslMatch) {
       setHue(parseFloat(hslMatch[1]));
       setSaturation(parseFloat(hslMatch[2]));
+      setLightness(parseFloat(hslMatch[3]));
     }
     setEditingConfig(config);
     setIsAdding(true);
@@ -311,9 +339,102 @@ export default function StatusConfigsPage() {
                             }}
                           />
                         </div>
+
+                        {/* Lightness Slider */}
+                        <div className="w-32 flex flex-col gap-1.5 mt-1">
+                          <div className="flex justify-between items-center text-[8px] font-bold text-foreground/50 uppercase tracking-widest">
+                            <span>Lightness</span>
+                            <div className="flex items-center gap-1 bg-brand/5 border border-border/30 rounded px-1.5 py-0.5">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={Math.round(lightness)}
+                                onChange={(e) => {
+                                  const sanitized = e.target.value.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  );
+                                  if (sanitized === "") {
+                                    setLightness(0);
+                                  } else {
+                                    const val = parseInt(sanitized, 10);
+                                    setLightness(Math.min(100, val));
+                                  }
+                                }}
+                                className="w-5 bg-transparent text-right outline-none text-[9px] font-bold text-foreground font-mono"
+                              />
+                              <span className="text-[8px] font-bold text-foreground/40 font-mono">
+                                %
+                              </span>
+                              <div className="flex flex-col border-l border-border/30 pl-1 ml-0.5 select-none">
+                                <button
+                                  type="button"
+                                  onMouseDown={() =>
+                                    startRepeat(() =>
+                                      setLightness((prev) =>
+                                        Math.min(100, prev + 1),
+                                      ),
+                                    )
+                                  }
+                                  onMouseUp={stopRepeat}
+                                  onMouseLeave={stopRepeat}
+                                  onTouchStart={() =>
+                                    startRepeat(() =>
+                                      setLightness((prev) =>
+                                        Math.min(100, prev + 1),
+                                      ),
+                                    )
+                                  }
+                                  onTouchEnd={stopRepeat}
+                                  className="text-[6px] font-bold text-foreground/40 hover:text-brand transition-colors leading-none pb-0.5 cursor-pointer"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  onMouseDown={() =>
+                                    startRepeat(() =>
+                                      setLightness((prev) =>
+                                        Math.max(0, prev - 1),
+                                      ),
+                                    )
+                                  }
+                                  onMouseUp={stopRepeat}
+                                  onMouseLeave={stopRepeat}
+                                  onTouchStart={() =>
+                                    startRepeat(() =>
+                                      setLightness((prev) =>
+                                        Math.max(0, prev - 1),
+                                      ),
+                                    )
+                                  }
+                                  onTouchEnd={stopRepeat}
+                                  className="text-[6px] font-bold text-foreground/40 hover:text-brand transition-colors leading-none pt-0.5 cursor-pointer"
+                                >
+                                  ▼
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={lightness}
+                            onChange={(e) =>
+                              setLightness(parseInt(e.target.value, 10))
+                            }
+                            className="w-full h-1.5 rounded-lg appearance-none cursor-pointer border border-white/10 shadow-inner accent-brand focus:outline-none"
+                            style={{
+                              background: `linear-gradient(to right, black 0%, hsl(${hue}, ${saturation}%, 50%) 50%, white 100%)`,
+                            }}
+                          />
+                        </div>
+
                         <button
                           onClick={() => setShowAdvancedColor(false)}
-                          className="text-[10px] font-semibold text-foreground/40 uppercase tracking-widest hover:text-brand transition-colors"
+                          className="text-[10px] font-semibold cursor-pointer text-foreground/40 uppercase tracking-widest hover:text-brand transition-colors"
                         >
                           Hide Wheel
                         </button>

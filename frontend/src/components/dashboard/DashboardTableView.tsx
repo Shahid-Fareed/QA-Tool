@@ -347,9 +347,9 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       activeDropdown === "status" ? null : "status",
                     )
                   }
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-surface transition-all cursor-pointer ${activeStatus ? "border-brand/40 ring-1 ring-brand/10" : "border-border hover:border-brand/30"}`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer bg-white dark:bg-neutral-900 border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 text-slate-900 dark:text-neutral-100 ${activeStatus ? "border-brand/50 ring-1 ring-brand/20 text-brand" : ""}`}
                 >
-                  <span className="text-xs font-semibold text-foreground/80">
+                  <span className="text-xs font-semibold">
                     {activeStatus || "Status"}
                   </span>
                   {activeStatus && (
@@ -360,16 +360,16 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       }}
                       className="p-0.5 hover:bg-brand/10 rounded-md transition-colors"
                     >
-                      <X className="w-3 h-3 text-foreground/40" />
+                      <X className="w-3 h-3 text-slate-600 dark:text-foreground/40" />
                     </button>
                   )}
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-foreground/50 transition-transform ${activeDropdown === "status" ? "rotate-180" : ""}`}
+                    className={`w-3.5 h-3.5 text-slate-500 dark:text-foreground/40 transition-transform ${activeDropdown === "status" ? "rotate-180" : ""}`}
                   />
                 </div>
 
                 <div
-                  className={`absolute top-full left-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl transition-all z-100 p-1.5 ${activeDropdown === "status" ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}
+                  className={`absolute top-full left-0 mt-2 w-48 bg-white dark:bg-neutral-950 border border-neutral-200/80 dark:border-neutral-800 rounded-xl shadow-lg transition-all z-100 p-1.5 ${activeDropdown === "status" ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}
                 >
                   {[
                     {
@@ -449,39 +449,42 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         color: "",
                         style: parseStyleString(s.color),
                       })),
-                  ].map((opt: any, idx) => (
-                    <button
-                      key={`${opt.label}-${idx}`}
-                      onClick={() => {
-                        selectStatus(opt.value);
-                        setActiveDropdown(null);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-brand/5 transition-colors group/item"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${opt.color || ""}`}
-                          style={
-                            opt.style
-                              ? {
-                                  backgroundColor:
-                                    opt.style.color ||
-                                    opt.style.backgroundColor,
-                                }
-                              : undefined
-                          }
-                        />
-                        <span
-                          className={`text-xs font-semibold ${activeStatus === opt.value ? "text-brand" : "text-foreground/80"}`}
-                        >
-                          {opt.label}
-                        </span>
-                      </div>
-                      {activeStatus === opt.value && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-brand" />
-                      )}
-                    </button>
-                  ))}
+                  ].map((opt: any, idx) => {
+                    const isSelected = activeStatus === opt.value;
+                    return (
+                      <button
+                        key={`${opt.label}-${idx}`}
+                        onClick={() => {
+                          selectStatus(opt.value);
+                          setActiveDropdown(null);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-xs font-semibold ${
+                          isSelected
+                            ? "bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold"
+                            : "text-slate-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${opt.color || ""}`}
+                            style={
+                              opt.style
+                                ? {
+                                    backgroundColor:
+                                      opt.style.color ||
+                                      opt.style.backgroundColor,
+                                  }
+                                : undefined
+                            }
+                          />
+                          <span>{opt.label}</span>
+                        </div>
+                        {isSelected && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -495,14 +498,14 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       activeDropdown === "priority" ? null : "priority",
                     )
                   }
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-surface transition-all cursor-pointer ${activePriority ? "border-brand/40 ring-1 ring-brand/10" : "border-border hover:border-brand/30"}`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all cursor-pointer bg-white dark:bg-neutral-900 border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 text-slate-900 dark:text-neutral-100 ${activePriority ? "border-brand/50 ring-1 ring-brand/20 text-brand" : ""}`}
                 >
                   {activePriority && (
                     <div
                       className={`w-2 h-2 rounded-full ${activePriority === "high" ? "bg-red-500" : activePriority === "medium" ? "bg-foreground/40" : "bg-cyan-400"}`}
                     />
                   )}
-                  <span className="text-xs font-semibold text-foreground/80 capitalize">
+                  <span className="text-xs font-semibold capitalize">
                     {activePriority || "Priority"}
                   </span>
                   {activePriority && (
@@ -513,16 +516,16 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       }}
                       className="p-0.5 hover:bg-brand/10 rounded-md transition-colors"
                     >
-                      <X className="w-3 h-3 text-foreground/40" />
+                      <X className="w-3 h-3 text-slate-600 dark:text-foreground/40" />
                     </button>
                   )}
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-foreground/50 transition-transform ${activeDropdown === "priority" ? "rotate-180" : ""}`}
+                    className={`w-3.5 h-3.5 text-slate-500 dark:text-foreground/40 transition-transform ${activeDropdown === "priority" ? "rotate-180" : ""}`}
                   />
                 </div>
 
                 <div
-                  className={`absolute top-full left-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl transition-all z-100 p-1.5 ${activeDropdown === "priority" ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}
+                  className={`absolute top-full left-0 mt-2 w-48 bg-white dark:bg-neutral-950 border border-neutral-200/80 dark:border-neutral-800 rounded-xl shadow-lg transition-all z-100 p-1.5 ${activeDropdown === "priority" ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}
                 >
                   {[
                     {
@@ -537,28 +540,33 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       color: "bg-foreground/40",
                     },
                     { label: "High", value: "high", color: "bg-red-500" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.label}
-                      onClick={() => {
-                        selectPriority(opt.value);
-                        setActiveDropdown(null);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-brand/5 transition-colors group/item"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${opt.color}`} />
-                        <span
-                          className={`text-xs font-semibold ${activePriority === opt.value ? "text-brand" : "text-foreground/80"}`}
-                        >
-                          {opt.label}
-                        </span>
-                      </div>
-                      {activePriority === opt.value && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-brand" />
-                      )}
-                    </button>
-                  ))}
+                  ].map((opt) => {
+                    const isSelected = activePriority === opt.value;
+                    return (
+                      <button
+                        key={opt.label}
+                        onClick={() => {
+                          selectPriority(opt.value);
+                          setActiveDropdown(null);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-xs font-semibold ${
+                          isSelected
+                            ? "bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold"
+                            : "text-slate-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${opt.color}`}
+                          />
+                          <span>{opt.label}</span>
+                        </div>
+                        {isSelected && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -573,13 +581,13 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
             )}
 
             <div className="flex-1 min-w-[200px] relative group max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/20" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-foreground/30 group-hover:text-slate-500 dark:group-hover:text-foreground/50 transition-colors" />
               <input
                 type="text"
                 placeholder="Search overview..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-brand/40 transition-all shadow-sm placeholder:text-foreground/50"
+                className="w-full bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-neutral-100 placeholder:text-slate-400 dark:placeholder:text-neutral-500 focus:outline-none focus:border-brand/40 focus:bg-white dark:focus:bg-neutral-900 transition-all shadow-sm"
               />
             </div>
 
@@ -624,14 +632,20 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                 columns.map((col) => (
                   <th
                     key={col.key}
-                    className="px-3 py-4 border-b border-border"
+                    className={`px-3 py-4 border-b border-border ${
+                      col.type === "date"
+                        ? "text-center w-[100px] whitespace-nowrap"
+                        : ""
+                    }`}
                   >
                     {col.label}
                   </th>
                 ))
               )}
               {(canEdit || canDelete || isOverview) && (
-                <th className="px-3 py-4 border-b border-border text-left min-w-[80px]">
+                <th
+                  className={`px-3 py-4 border-b border-border text-center ${isOverview ? "text-left min-w-[80px]" : "w-[90px] whitespace-nowrap"}`}
+                >
                   Actions
                 </th>
               )}
@@ -741,9 +755,12 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         }
 
                         return (
-                          <td key={col.key} className="px-3 py-4">
+                          <td
+                            key={col.key}
+                            className="px-3 py-4 whitespace-nowrap"
+                          >
                             <span
-                              className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border ${getPriorityStyles(val)}`}
+                              className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border whitespace-nowrap ${getPriorityStyles(val)}`}
                             >
                               {val || "Medium"}
                             </span>
@@ -833,11 +850,14 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         if (isLinkedUC && linkedObj) {
                           const badgeInfo = getBadgeStyle(val);
                           return (
-                            <td key={col.key} className="px-3 py-4">
+                            <td
+                              key={col.key}
+                              className="px-3 py-4 whitespace-nowrap"
+                            >
                               <Link
                                 href={`/projects/${item.projectId}/use-cases?module=${linkedObj.moduleId}&selected=${linkedObj._id}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border hover:bg-brand/20 hover:border-brand/40 cursor-pointer hover:scale-105 active:scale-95 transition-all flex items-center gap-2 w-fit shadow-sm ${badgeInfo.className}`}
+                                className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border hover:bg-brand/20 hover:border-brand/40 cursor-pointer hover:scale-105 active:scale-95 transition-all flex items-center gap-2 w-fit shadow-sm whitespace-nowrap ${badgeInfo.className}`}
                                 style={badgeInfo.style}
                               >
                                 {val}
@@ -918,9 +938,12 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                           val || (itemType === "bugs" ? "None" : "Pending"),
                         );
                         return (
-                          <td key={col.key} className="px-3 py-4">
+                          <td
+                            key={col.key}
+                            className="px-3 py-4 whitespace-nowrap"
+                          >
                             <span
-                              className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border shadow-sm ${badgeInfo.className}`}
+                              className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border shadow-sm whitespace-nowrap ${badgeInfo.className}`}
                               style={badgeInfo.style}
                             >
                               {val ||
@@ -1001,7 +1024,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-4 py-4 text-foreground/75 font-mono text-[10px] uppercase"
+                            className="px-3 py-4 text-foreground/75 font-mono text-[10px] uppercase text-center w-[100px] whitespace-nowrap"
                           >
                             {val
                               ? new Date(val).toLocaleDateString("en-US", {
@@ -1017,13 +1040,25 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-4 py-4 font-mono text-xs text-foreground/80"
+                            className="px-4 py-4 font-mono text-xs text-foreground/80 whitespace-nowrap"
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
                               {val}
                               {col.key === "customId" && item.isManual && (
-                                <span className="bg-brand/10 text-brand text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-brand/20 flex items-center justify-center h-4">
+                                <span className="bg-brand/10 text-brand text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-brand/20 flex items-center justify-center h-4 whitespace-nowrap">
                                   NEW
+                                </span>
+                              )}
+                              {col.key === "customId" && item.capturedVia === "extension" && (
+                                <span className="bg-purple-500/10 text-purple-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-purple-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap">
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                                  EXT
+                                </span>
+                              )}
+                              {col.key === "customId" && item.capturedVia === "chat" && (
+                                <span className="bg-blue-500/10 text-blue-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-blue-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap" title="Exported from Chat">
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                  EXP
                                 </span>
                               )}
                             </div>
@@ -1046,8 +1081,8 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       );
                     })}
                     {(canEdit || canDelete) && (
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-1 transition-opacity">
+                      <td className="px-3 py-4 w-[90px]">
+                        <div className="flex items-center justify-center gap-1 transition-opacity">
                           {canEdit && itemType === "test-cases" && (
                             <Tooltip content="Run Test Case">
                               <button
@@ -1057,9 +1092,9 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                                     `/projects/${projectId}/test-runs?module=${item.moduleId}&selected=${item._id}`,
                                   );
                                 }}
-                                className="p-1.5 rounded-md hover:bg-brand/10 text-foreground/60 hover:text-brand"
+                                className="p-1 rounded-md hover:bg-brand/10 text-foreground/60 hover:text-brand"
                               >
-                                <Play className="w-4 h-4" />
+                                <Play className="w-3.5 h-3.5" />
                               </button>
                             </Tooltip>
                           )}
@@ -1071,9 +1106,9 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                                   setSelectedItem(item);
                                   setIsEditMode(true);
                                 }}
-                                className="p-1.5 rounded-md hover:bg-blue-500/10 text-foreground/60 hover:text-blue-500"
+                                className="p-1 rounded-md hover:bg-blue-500/10 text-foreground/60 hover:text-blue-500"
                               >
-                                <Edit2 className="w-4 h-4" />
+                                <Edit2 className="w-3.5 h-3.5" />
                               </button>
                             </Tooltip>
                           )}
@@ -1084,9 +1119,9 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                                   e.stopPropagation();
                                   setItemToDelete(item);
                                 }}
-                                className="p-1.5 rounded-md hover:bg-red-500/10 text-foreground/60 hover:text-red-500"
+                                className="p-1 rounded-md hover:bg-red-500/10 text-foreground/60 hover:text-red-500"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </Tooltip>
                           )}

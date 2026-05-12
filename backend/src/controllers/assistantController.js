@@ -5,7 +5,11 @@ const {
   ASSISTANT_SYSTEM_PROMPT,
   INLINE_GENERATION_PROMPT,
 } = require("../lib/prompts");
-const { getNextGroqClient, fetchWithRetry, safeParseJSON } = require("../services/aiService");
+const {
+  getNextGroqClient,
+  fetchWithRetry,
+  safeParseJSON,
+} = require("../services/aiService");
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -27,7 +31,7 @@ function buildMarkdownTable(parsed) {
     const body = rows
       .map(
         (r) =>
-          `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.preconditions || ""} | ${r.steps || ""} | ${r.expectedResult || ""} | ${r.priority || ""} |`
+          `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.preconditions || ""} | ${r.steps || ""} | ${r.expectedResult || ""} | ${r.priority || ""} |`,
       )
       .join("\n");
     return `### Test Cases — ${subject}\n\n${header}${body}`;
@@ -40,7 +44,7 @@ function buildMarkdownTable(parsed) {
     const body = rows
       .map(
         (r) =>
-          `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.description || ""} | ${r.stepsToReproduce || ""} | ${r.expectedResult || ""} | ${r.actualResult || ""} | ${r.severity || ""} |`
+          `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.description || ""} | ${r.stepsToReproduce || ""} | ${r.expectedResult || ""} | ${r.actualResult || ""} | ${r.severity || ""} |`,
       )
       .join("\n");
     return `### Bug Reports — ${subject}\n\n${header}${body}`;
@@ -53,13 +57,85 @@ function buildMarkdownTable(parsed) {
     const body = rows
       .map(
         (r) =>
-          `| ${r.id || ""} | ${r.module || ""} | ${r.name || ""} | ${r.actor || ""} | ${r.description || ""} | ${r.preconditions || ""} | ${r.mainFlow || ""} | ${r.alternateFlow || ""} |`
+          `| ${r.id || ""} | ${r.module || ""} | ${r.name || ""} | ${r.actor || ""} | ${r.description || ""} | ${r.preconditions || ""} | ${r.mainFlow || ""} | ${r.alternateFlow || ""} |`,
       )
       .join("\n");
     return `### Use Cases — ${subject}\n\n${header}${body}`;
   }
 
   return `Generated data for "${subject}" (unknown type).`;
+}
+
+/**
+ * Reverse-engineers the markdown table back into structured JSON objects
+ * so the LLM can manipulate raw data instead of error-prone markdown syntax.
+ */
+function parseMarkdownTableToJson(md, type) {
+  if (!md) return null;
+  const lines = md
+    .split("\n")
+    .filter((l) => l.trim().startsWith("|"))
+    .map((l) => l.trim());
+
+  if (lines.length < 3) return null;
+
+  // Skip header [0] and delimiter [1]
+  const dataLines = lines.slice(2);
+
+  const parseRow = (line) =>
+    line
+      .split("|")
+      .slice(1, -1)
+      .map((c) => c.trim());
+
+  const rows = dataLines
+    .map((line) => {
+      const cells = parseRow(line);
+      if (!cells || cells.length === 0) return null;
+
+      if (type === "testcase") {
+        return {
+          id: cells[0] || "",
+          module: cells[1] || "",
+          title: cells[2] || "",
+          preconditions: cells[3] || "",
+          steps: cells[4] || "",
+          expectedResult: cells[5] || "",
+          priority: cells[6] || "",
+        };
+      }
+
+      if (type === "bugreport") {
+        return {
+          id: cells[0] || "",
+          module: cells[1] || "",
+          title: cells[2] || "",
+          description: cells[3] || "",
+          stepsToReproduce: cells[4] || "",
+          expectedResult: cells[5] || "",
+          actualResult: cells[6] || "",
+          severity: cells[7] || "",
+        };
+      }
+
+      if (type === "usecase") {
+        return {
+          id: cells[0] || "",
+          module: cells[1] || "",
+          name: cells[2] || "",
+          actor: cells[3] || "",
+          description: cells[4] || "",
+          preconditions: cells[5] || "",
+          mainFlow: cells[6] || "",
+          alternateFlow: cells[7] || "",
+        };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  return rows;
 }
 
 // ─── Controllers ────────────────────────────────────────────────────────────
@@ -96,7 +172,7 @@ exports.chat = async (req, res) => {
         model: groq("llama-3.3-70b-versatile"),
         system: ASSISTANT_SYSTEM_PROMPT,
         messages: [...chatHistory, { role: "user", content: message }],
-      })
+      }),
     );
 
     let aiResponse = text.trim();
@@ -104,13 +180,9 @@ exports.chat = async (req, res) => {
     let triggerInfo = null;
 
     // ── Try to detect a JSON trigger ──────────────────────────────────────
-    try {
-      const jsonStart = aiResponse.indexOf("{");
-      const jsonEnd = aiResponse.lastIndexOf("}");
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        const potentialJson = aiResponse.substring(jsonStart, jsonEnd + 1);
-        const parsed = JSON.parse(potentialJson);
-
+    const parsed = safeParseJSON(aiResponse);
+    if (parsed) {
+      try {
         // ── Path A: Full project generation (file-based) ──────────────────
         if (parsed.action === "generate") {
           action = "generate";
@@ -127,33 +199,71 @@ exports.chat = async (req, res) => {
           action = "inline-generate";
           const artifactType = parsed.artifactType || "testcase";
           const subject = parsed.subject || "Module";
+          const userConstraints = parsed.userConstraints || "none";
 
           const inlineText =
             parsed.text || `Generating ${artifactType} table for ${subject}...`;
 
-          // Call AI a second time to get the structured table data
-          const groq2 = getNextGroqClient();
-          const { text: tableText } = await fetchWithRetry(() =>
-            generateText({
-              model: groq2("llama-3.3-70b-versatile"),
-              system: INLINE_GENERATION_PROMPT(artifactType, subject),
-              prompt: `Generate a ${artifactType} table for: ${subject}`,
-              temperature: 0.3,
-              maxOutputTokens: 8192,
-            })
-          );
+          const isRevision =
+            parsed.isRevision === true || parsed.isRevision === "true";
 
-          // Parse the structured JSON and convert to a markdown table
-          const tableJson = safeParseJSON(tableText);
-          if (tableJson && tableJson.rows) {
-            aiResponse = buildMarkdownTable(tableJson);
-          } else {
-            aiResponse = `I could not generate a table for "${subject}". Please try again with a more specific description.`;
+          // Call AI a second time to get the structured table data
+          try {
+            // NEW: Attempt to find most recent markdown table in history to enable revision/edit support
+            let previousTable = null;
+            if (isRevision) {
+              for (let i = chatHistory.length - 1; i >= 0; i--) {
+                if (
+                  chatHistory[i].role === "assistant" &&
+                  chatHistory[i].content.includes("|")
+                ) {
+                  previousTable = chatHistory[i].content;
+                  break;
+                }
+              }
+            }
+
+            // Convert Markdown to clean JSON objects for the LLM prompt, preventing format leakage
+            const parsedRows = parseMarkdownTableToJson(
+              previousTable,
+              artifactType,
+            );
+            const dataToInject = parsedRows
+              ? JSON.stringify(parsedRows, null, 2)
+              : null;
+
+            const groq2 = getNextGroqClient();
+            const { text: tableText } = await fetchWithRetry(() =>
+              generateText({
+                model: groq2("llama-3.3-70b-versatile"),
+                system: INLINE_GENERATION_PROMPT(
+                  artifactType,
+                  subject,
+                  userConstraints,
+                  dataToInject,
+                ),
+                prompt: `Generate a ${artifactType} table for: ${subject}. User specific instructions: ${userConstraints}`,
+                temperature: 0.3,
+                maxOutputTokens: 8192,
+              }),
+            );
+
+            // Parse the structured JSON and convert to a markdown table
+            const tableJson = safeParseJSON(tableText);
+            if (tableJson && tableJson.rows) {
+              aiResponse = buildMarkdownTable(tableJson);
+            } else {
+              aiResponse = `I could not generate a table for "${subject}". Please try again with a more specific description.`;
+            }
+          } catch (innerErr) {
+            console.error("[inline-generate] Failed on second AI call:", innerErr);
+            aiResponse = `Failed to generate inline table for ${subject}. Server error.`;
           }
         }
+      } catch (err) {
+        console.error("[assistant action parser] Failed during execution:", err);
+        // Revert to plain string if it partially modified
       }
-    } catch (err) {
-      // If JSON parsing fails, treat as plain text response — no-op
     }
 
     session.messages.push({ role: "user", text: message });
@@ -198,7 +308,7 @@ exports.renameSession = async (req, res) => {
     const session = await ChatSession.findOneAndUpdate(
       { _id: sessionId, userId },
       { title },
-      { new: true }
+      { new: true },
     );
     if (!session) return res.status(404).json({ error: "Session not found" });
     return res.json(session);
@@ -281,5 +391,160 @@ exports.appendMessages = async (req, res) => {
   } catch (err) {
     console.error("[appendMessages] Error:", err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+/**
+ * Exports raw table artifacts into a specified project.
+ * Handles deduplication by Title and generates new sequential custom IDs.
+ */
+exports.exportArtifacts = async (req, res) => {
+  try {
+    const { projectId, artifactType, items } = req.body;
+    if (!projectId || !artifactType || !items || !Array.isArray(items)) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+
+    await dbConnect();
+    // Late require models to prevent initialization sync issues
+    const mongoose = require("mongoose");
+    const Project = require("../models/Project");
+    const TestCase = require("../models/TestCase");
+    const UseCase = require("../models/UseCase");
+    const BugReport = require("../models/BugReport");
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ error: "Selected project not found" });
+    }
+
+    let Model;
+    let idPrefix;
+    if (artifactType === "testcase") {
+      Model = TestCase;
+      idPrefix = "TC-";
+    } else if (artifactType === "usecase") {
+      Model = UseCase;
+      idPrefix = "UC-";
+    } else if (artifactType === "bugreport") {
+      Model = BugReport;
+      idPrefix = "BUG-";
+    } else {
+      return res.status(400).json({ error: "Invalid artifact type specified" });
+    }
+
+    // 1. Fetch existing items in this project to perform de-duplication by title
+    const existing = await Model.find({ projectId }).select("title").lean();
+    const existingTitles = new Set(
+      existing.map((x) => (x.title || "").toLowerCase().trim()),
+    );
+
+    const skippedItems = [];
+    const toInsert = [];
+    // 3. Calculate existing module numbering & sub-item counts chronologically.
+    const existingModules = await Model.aggregate([
+      { $match: { projectId: new mongoose.Types.ObjectId(projectId) } },
+      {
+        $group: {
+          _id: "$moduleId",
+          firstCreated: { $min: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { firstCreated: 1 } },
+    ]);
+
+    const moduleToNum = {};
+    const moduleCounts = {};
+    existingModules.forEach((mod, i) => {
+      const mName = (mod._id || "Unspecified").trim();
+      moduleToNum[mName] = i + 1;
+      moduleCounts[mName] = mod.count || 0;
+    });
+
+    for (const raw of items) {
+      const title = (raw.title || "").trim();
+      if (!title) continue; // Skip blank items
+
+      const modName = (raw.module || "Unspecified").trim();
+
+      if (existingTitles.has(title.toLowerCase())) {
+        skippedItems.push({
+          module: modName,
+          title: title,
+        });
+        continue;
+      }
+
+      // Dynamically register new modules into the next incremental sequence index
+      if (!moduleToNum[modName]) {
+        moduleToNum[modName] = Object.keys(moduleToNum).length + 1;
+        moduleCounts[modName] = 0;
+      }
+
+      const moduleIdx = moduleToNum[modName];
+      const itemNum = ++moduleCounts[modName];
+
+      // 4. Construct core shared fields with dotted module suffix (e.g., TC-1.01)
+      const doc = {
+        projectId,
+        projectName: project.projectName,
+        moduleId: modName,
+        title,
+        customId: `${idPrefix}${moduleIdx}.${String(itemNum).padStart(2, "0")}`,
+        isManual: true,
+        capturedVia: "chat",
+      };
+
+      // 3. Map distinct model fields
+      if (artifactType === "testcase") {
+        doc.preconditions = raw.preconditions || "";
+        doc.steps = raw.steps || "";
+        doc.expectedResult = raw.expectedResult || "";
+        doc.priority = raw.priority || "Medium";
+        doc.status = raw.status || "Pending";
+      } else if (artifactType === "usecase") {
+        doc.actors = raw.actor || raw.actors || "";
+        doc.description = raw.description || "";
+        doc.mainFlow = raw.mainFlow || "";
+        doc.alternativeFlows = raw.alternativeFlows || raw.alternateFlow || "";
+        doc.priority = raw.priority || "Medium";
+      } else if (artifactType === "bugreport") {
+        // If separate description, expected, steps are provided, synthesize into description if fields are omitted
+        let fullDesc = raw.description || "";
+        if (raw.stepsToReproduce) {
+          fullDesc += `\n\n**Steps to Reproduce:**\n${raw.stepsToReproduce}`;
+        }
+        if (raw.expectedResult) {
+          fullDesc += `\n\n**Expected Result:**\n${raw.expectedResult}`;
+        }
+        if (raw.actualResult) {
+          fullDesc += `\n\n**Actual Result:**\n${raw.actualResult}`;
+        }
+        doc.description = fullDesc.trim();
+        doc.severity = raw.severity || "Medium";
+        doc.priority = raw.priority || "Medium";
+      }
+
+      toInsert.push(doc);
+    }
+
+    // Bulk insertion
+    if (toInsert.length > 0) {
+      await Model.insertMany(toInsert);
+    }
+
+    return res.json({
+      success: true,
+      insertedCount: toInsert.length,
+      skippedCount: skippedItems.length,
+      skippedDetails: skippedItems,
+      message: `Successfully exported ${toInsert.length} items.`,
+    });
+  } catch (err) {
+    console.error("[exportArtifacts] Error during bulk write:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to write data to project database." });
   }
 };

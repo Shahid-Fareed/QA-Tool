@@ -53,6 +53,7 @@ export default function AddItemModal({
     linkedUseCase: "",
     steps: "", // For test cases
     preConditions: "", // For test cases
+    expectedResult: "", // For test cases
     actors: "", // For use cases
     mainFlow: "", // For use cases
   });
@@ -71,6 +72,7 @@ export default function AddItemModal({
       linkedUseCase: "",
       steps: "",
       preConditions: "",
+      expectedResult: "",
       actors: "",
       mainFlow: "",
     }));
@@ -380,6 +382,23 @@ export default function AddItemModal({
                           className="mt-2 w-full bg-brand/5 border border-border rounded-lg py-2 px-4 text-sm focus:outline-none h-20 resize-none"
                         />
                       </div>
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase font-semibold tracking-wider text-foreground/70">
+                        Expected Result (Optional)
+                      </label>
+                      <textarea
+                        value={formData.expectedResult}
+                        onChange={(e) =>
+                          setFormData({ ...formData, expectedResult: e.target.value })
+                        }
+                        onFocus={() => {
+                          console.log("AddItemModal: Focus on expectedResult");
+                          setFocusedField("expectedResult");
+                        }}
+                        className="mt-2 w-full bg-brand/5 border border-border rounded-lg py-2 px-4 text-sm focus:outline-none h-20 resize-none"
+                        placeholder="Expected outcome of the test case..."
+                      />
                     </div>
                   </div>
                 )}

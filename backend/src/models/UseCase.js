@@ -18,6 +18,7 @@ const UseCaseSchema = new mongoose.Schema(
     alternativeFlows: { type: String, default: "" },
     priority: { type: String, default: "Medium" },
     isManual: { type: Boolean, default: false },
+    capturedVia: { type: String, default: "" },
   },
   { timestamps: true },
 );

@@ -42,10 +42,15 @@ export async function loginAction(
 
     // Set the cookie directly using the user object returned from Express
     const cookieStore = await cookies();
+    
+    // Use .soulservices.com in production so both webqa and backendwebqa can read it
+    const isProd = process.env.NODE_ENV === 'production';
+    
     cookieStore.set(SESSION_COOKIE, JSON.stringify(data.user), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      domain: isProd ? '.soulservices.com' : undefined,
       path: '/',
       maxAge: 60 * 60 * 8, // 8 hours
     });

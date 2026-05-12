@@ -35,8 +35,8 @@ router.post("/login", async (req, res) => {
 
     res.cookie(SESSION_COOKIE, JSON.stringify(sessionUser), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true, // Must be true for sameSite: 'none'
+      sameSite: "none", // Required for cross-subdomain cookies
       path: "/",
       maxAge: 60 * 60 * 8 * 1000, // 8 hours in ms
     });

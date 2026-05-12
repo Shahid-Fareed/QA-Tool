@@ -50,9 +50,19 @@ function safeParseJSON(text) {
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
     if (start === -1 || end === -1) return null;
-    return JSON.parse(text.substring(start, end + 1));
+    
+    let jsonString = text.substring(start, end + 1);
+    
+    // Strip out dangerous control characters that break JSON.parse (except valid spaces like \n \r \t)
+    // eslint-disable-next-line no-control-regex
+    jsonString = jsonString.replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => {
+       if (c === '\n' || c === '\r' || c === '\t') return c;
+       return '';
+    });
+
+    return JSON.parse(jsonString);
   } catch (e) {
-    console.error("[JSON Parse Error]:", e);
+    console.error("[JSON Parse Error]:", e.message);
     return null;
   }
 }

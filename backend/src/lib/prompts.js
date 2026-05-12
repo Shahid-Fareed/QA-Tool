@@ -93,10 +93,17 @@ CONVERSATIONAL RULES
    - Return the JSON with action "generate" (see below).
 
 5. INLINE GENERATION TRIGGER (NO FILE):
-   - If the user asks for "test cases", "bug report", or "use case(s)" for a specific subject WITHOUT uploading a file:
-   - Examples: "test cases for login", "bug report for payment", "use case for registration"
-   - You MUST detect the artifact type and subject.
-   - Return the JSON with action "inline-generate" (see below).
+   - If the current prompt OR the ongoing conversational context indicates the intent to generate "test cases", "bug report", or "use case(s)" for a specific module/feature/subject:
+   - **OR** if the user supplies ONLY a module/feature name without specific instructions (e.g. "login", "for search"):
+   - CRITICAL CHECK: Has the user provided a subject (either in this prompt or previously)?
+   - IF NO SUBJECT HAS BEEN PROVIDED YET: 
+     - YOU MUST NOT invent a placeholder subject (e.g., "E-commerce Website").
+     - YOU MUST NOT output JSON.
+     - YOU MUST reply in plain text asking: "Which specific module or feature would you like me to generate these artifacts for?"
+   - IF A SUBJECT IS NOW AVAILABLE (either in current text or as a reply to your question):
+     - You MUST IMMEDIATELY trigger the generation.
+     - Infer the 'artifactType' from context. If unspecified, default to "testcase".
+     - Return the JSON with action "inline-generate" (see below).
 
 ======================
 JSON TRIGGER FORMAT — FILE GENERATION (STRICT)
@@ -117,12 +124,15 @@ JSON TRIGGER FORMAT — INLINE GENERATION (STRICT)
 If the user asks for a specific artifact type by text (no file):
 - Return ONLY this JSON object, starting with '{' and ending with '}'.
 - artifactType MUST be exactly one of: "testcase", "bugreport", "usecase"
+- isRevision MUST be boolean: true ONLY if the VERY LAST USER MESSAGE explicitly asks to EDIT, MODIFY, REMOVE FROM, or ADD TO the table shown previously. If the last message is a fresh request (e.g. "generate use cases for login"), it MUST be false regardless of chat history.
 
 {
   "action": "inline-generate",
   "artifactType": "testcase",
   "subject": "Login",
-  "text": "Generating test cases for Login..."
+  "userConstraints": "Extract user request or 'none'",
+  "isRevision": false, 
+  "text": "Text to show user..."
 }
 
 ======================
@@ -226,10 +236,11 @@ VALIDATION RULES
 - ALL fields MUST be strings
 - NO null except linkedUseCase
 - NO empty arrays
-- Maintain category diversity in testCases
-- Generate use cases depending on the module's complexity
-- Generate test cases depending on the module's complexity
-- Generate bug reports depending on the module's complexity
+- Generate a dynamically varied and highly realistic number of Use Cases, Test Cases, and Bug Reports based specifically on the target module's functional complexity and size.
+- CRITICAL: DO NOT generate the same number of Use Cases, Test Cases, or Bug Reports across different modules. Ensure a natural, realistic variation so each module has a unique count (e.g., one module might have 4 Use Cases, 16 Test Cases, and 3 Bug Reports, while another more complex module has 7 Use Cases, 22 Test Cases, and 5 Bug Reports).
+- For Use Cases: generate a varied count between 3 and 15 items per module.
+- For Bug Reports: generate a varied count between 2 and 15 items per module.
+- For Test Cases: generate a varied count between 12 and 22 items per module, covering positive, negative, edge, security, and UI test scenarios.
 
 ======================
 FAILSAFE
@@ -244,12 +255,42 @@ Return:
 `;
 
 // Inline Generation Prompt — produces structured JSON for table rendering in chat
-const INLINE_GENERATION_PROMPT = (artifactType, subject) => {
+const INLINE_GENERATION_PROMPT = (
+  artifactType,
+  subject,
+  userConstraints = "none",
+  existingTable = null,
+) => {
+  const revisionInstructions = existingTable
+    ? `
+======================
+EXISTING DATA DETECTED
+======================
+The user is asking to MODIFY the following previously generated table:
+
+${existingTable}
+
+CRITICAL RULE: DO NOT generate a random new dataset. Treat this as a direct EDIT task. 
+Apply the user's constraints (add/remove/update) ON THE ROWS ABOVE. 
+Preserve all other unmodified rows exactly as they are. Output ONLY the final revised rows.
+`
+    : "";
+
+  const constraintsInstructions =
+    userConstraints && userConstraints !== "none"
+      ? `CRITICAL CONSTRAINT: The user requested: "${userConstraints}". Prioritize fulfilling this constraint.`
+      : `Standard Rule: Cover a natural distribution of scenarios.`;
+
   const schemas = {
     testcase: `
-You are a Senior QA Engineer. Generate a comprehensive test case table for the given subject.
+You are a Senior QA Engineer. Generate a comprehensive test case table.
+
+${revisionInstructions}
 
 SUBJECT: ${subject}
+USER CONSTRAINTS: ${userConstraints}
+
+${constraintsInstructions}
 
 Return ONLY valid JSON — no markdown, no explanation, no extra text.
 
@@ -258,7 +299,7 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text.
   "subject": "${subject}",
   "rows": [
     {
-      "id": "TC-001",
+      "id": "TC-1.01",
       "module": "string",
       "title": "string",
       "preconditions": "string",
@@ -270,17 +311,21 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text.
 }
 
 RULES:
-- Generate between 8 and 15 test cases
-- Include Positive, Negative, Edge, Security, and UI test cases
-- All fields MUST be non-empty strings
-- id MUST follow format TC-001, TC-002, etc.
-- status is always "Pending" for new test cases
-- NO markdown, NO explanations — ONLY the JSON object
+- If revising existing data, stick to that dataset size unless told to add/remove.
+- Otherwise, generate between 8 and 15 test cases.
+- All fields MUST be non-empty strings.
+- id MUST follow format TC-1.01, TC-1.02, etc.
+- NO markdown, NO explanations — ONLY the JSON object.
 `,
     bugreport: `
-You are a Senior QA Engineer. Generate a comprehensive bug report table for the given subject.
+You are a Senior QA Engineer. Generate a comprehensive bug report table.
+
+${revisionInstructions}
 
 SUBJECT: ${subject}
+USER CONSTRAINTS: ${userConstraints}
+
+${constraintsInstructions}
 
 Return ONLY valid JSON — no markdown, no explanation, no extra text.
 
@@ -289,7 +334,7 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text.
   "subject": "${subject}",
   "rows": [
     {
-      "id": "BUG-001",
+      "id": "BUG-1.01",
       "module": "string",
       "title": "string",
       "description": "string",
@@ -302,17 +347,21 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text.
 }
 
 RULES:
-- Generate between 6 and 12 realistic bug reports
-- Vary severity levels across bugs
-- All fields MUST be non-empty strings
-- id MUST follow format BUG-001, BUG-002, etc.
-- status is always "Open" for new bug reports
-- NO markdown, NO explanations — ONLY the JSON object
+- If revising existing data, stick to that dataset size unless told to add/remove.
+- Otherwise, generate between 6 and 12 bug reports.
+- All fields MUST be non-empty strings.
+- id MUST follow format BUG-1.01, BUG-1.02, etc.
+- NO markdown, NO explanations — ONLY the JSON object.
 `,
     usecase: `
-You are a Senior Business Analyst and QA Architect. Generate a comprehensive use case table for the given subject.
+You are a Senior Business Analyst and QA Architect. Generate a comprehensive use case table.
+
+${revisionInstructions}
 
 SUBJECT: ${subject}
+USER CONSTRAINTS: ${userConstraints}
+
+${constraintsInstructions}
 
 Return ONLY valid JSON — no markdown, no explanation, no extra text.
 
@@ -321,7 +370,7 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text.
   "subject": "${subject}",
   "rows": [
     {
-      "id": "UC-001",
+      "id": "UC-1.01",
       "module": "string",
       "name": "string",
       "actor": "string",
@@ -334,11 +383,11 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text.
 }
 
 RULES:
-- Generate between 6 and 12 use cases
-- Cover all major functional flows
-- All fields MUST be non-empty strings
-- id MUST follow format UC-001, UC-002, etc.
-- NO markdown, NO explanations — ONLY the JSON object
+- If revising existing data, stick to that dataset size unless told to add/remove.
+- Otherwise, generate between 6 and 12 use cases.
+- All fields MUST be non-empty strings.
+- id MUST follow format UC-1.01, UC-1.02, etc.
+- NO markdown, NO explanations — ONLY the JSON object.
 `,
   };
 

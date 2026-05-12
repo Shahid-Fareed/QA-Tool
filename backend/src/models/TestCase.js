@@ -20,6 +20,7 @@ const TestCaseSchema = new mongoose.Schema(
     status: { type: String, default: "Pending" },
     linkedUseCase: { type: String, default: "" },
     isManual: { type: Boolean, default: false },
+    capturedVia: { type: String, default: "" },
     automationScript: { type: String, default: "" },
     automationFramework: { type: String, default: "" },
     automationLanguage: { type: String, default: "" },

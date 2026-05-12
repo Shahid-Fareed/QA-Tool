@@ -71,13 +71,6 @@ export const Tooltip: React.FC<TooltipProps> = ({
     };
   }, [isVisible]);
 
-  const animations = {
-    top: { opacity: 0, y: 5, x: "-50%" },
-    bottom: { opacity: 0, y: -5, x: "-50%" },
-    left: { opacity: 0, x: 5, y: "-50%" },
-    right: { opacity: 0, x: -5, y: "-50%" },
-  };
-
   const positions = {
     top: "left-0 -translate-x-1/2 -translate-y-full mb-2",
     bottom: "left-0 -translate-x-1/2 mt-2",
@@ -105,13 +98,9 @@ export const Tooltip: React.FC<TooltipProps> = ({
           >
             <AnimatePresence>
               <motion.div
-                initial={animations[side]}
-                animate={{
-                  opacity: 1,
-                  x: side === "left" || side === "right" ? 0 : "-50%",
-                  y: side === "top" || side === "bottom" ? 0 : "-50%",
-                }}
-                exit={animations[side]}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 className={`absolute ${positions[side]}`}
               >

@@ -1,4 +1,6 @@
-require("dotenv").config();
+require("dotenv").config({
+  path: require("path").resolve(__dirname, "../.env"),
+});
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -16,6 +18,7 @@ const visionRoutes = require("./routes/vision");
 const itemRoutes = require("./routes/items");
 const codeEvaluationRoutes = require("./routes/codeEvaluation");
 const statusConfigRoutes = require("./routes/statusConfigs");
+const extensionRoutes = require("./routes/extension");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,7 +30,7 @@ app.use(
     credentials: true, // Required for cookies to flow cross-origin
   }),
 );
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -39,6 +42,7 @@ app.use("/api/generate", generateRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/code-evaluation", codeEvaluationRoutes);
 app.use("/api/status-configs", statusConfigRoutes);
+app.use("/api/extension", extensionRoutes);
 
 // Project-namespaced routes (order matters — specific before generic)
 app.use("/api/projects", chatRoutes); // POST /api/projects/:id/chat
@@ -49,8 +53,12 @@ app.use("/api/projects", projectRoutes); // GET /api/projects, /api/projects/:id
 // Standalone test-run routes
 app.use("/api/test-runs", testRunExecutions); // GET/PATCH/DELETE /api/test-runs/:runId
 
-// ── Health Check ────────────────────────────────────────────────────
-app.get("/api/health", (req, res) => {
+// ── Health & Root Routes ─────────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.json({ message: "QA Tool Backend API is running", health: "/health" });
+});
+
+app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 

@@ -42,10 +42,10 @@ async function fetchPaginatedResource({
         $group: {
           _id: "$moduleId",
           totalItems: { $sum: 1 },
-          minCustomId: { $min: "$customId" },
+          firstCreated: { $min: "$createdAt" }, // earliest doc in this module
         },
       },
-      { $sort: { minCustomId: 1 } },
+      { $sort: { firstCreated: 1 } }, // oldest module first → newest module last
     ]);
 
     totalPages = Math.max(

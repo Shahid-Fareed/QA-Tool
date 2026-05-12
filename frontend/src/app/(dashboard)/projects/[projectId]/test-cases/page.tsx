@@ -62,6 +62,7 @@ export default async function TestCasesPage({
     { key: "moduleId", label: "Module", type: "text" },
     { key: "title", label: "Title", type: "text" },
     { key: "description", label: "Description", type: "text" },
+    { key: "expectedResult", label: "Expected Result", type: "text" },
     { key: "linkedUseCase", label: "Linked UC", type: "badge" },
     { key: "priority", label: "Priority", type: "priority" },
     { key: "status", label: "Status", type: "status" },

@@ -24,6 +24,20 @@ const BugReportSchema = new mongoose.Schema(
     isManual: { type: Boolean, default: false },
     isVision: { type: Boolean, default: false },
 
+    // Extension capture fields
+    screenshot: { type: String, default: null },       // base64 data URL
+    pageUrl: { type: String, default: null },           // URL where bug was captured
+    consoleLogs: { type: [String], default: [] },       // last N console entries
+    networkErrors: { type: [Object], default: [] },     // failed network requests
+    capturedVia: {
+      type: String,
+      enum: ["manual", "extension", "vision", "chat"],
+      default: "manual",
+    },
+    reportedById:   { type: String, default: null },   // user id who submitted via extension
+    reportedByName: { type: String, default: null },   // display name
+    reportedByEmail:{ type: String, default: null },   // email
+
     iterations: { type: Number, default: 0 },
   },
   { timestamps: true },

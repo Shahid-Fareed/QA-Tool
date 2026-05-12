@@ -908,9 +908,24 @@ export default function ExecutionStepperClient({
                             }
                             className="bg-brand/5 border border-border rounded-lg px-2 py-1 text-[10px] font-semibold text-foreground outline-none focus:border-brand/40"
                           >
-                            <option value="Playwright">Playwright</option>
-                            <option value="Cypress">Cypress</option>
-                            <option value="Selenium">Selenium</option>
+                            <option
+                              value="Playwright"
+                              className="bg-neutral-950 text-foreground"
+                            >
+                              Playwright
+                            </option>
+                            <option
+                              value="Cypress"
+                              className="bg-neutral-950 text-foreground"
+                            >
+                              Cypress
+                            </option>
+                            <option
+                              value="Selenium"
+                              className="bg-neutral-950 text-foreground"
+                            >
+                              Selenium
+                            </option>
                           </select>
                           <select
                             value={selectedLanguage}
@@ -919,9 +934,24 @@ export default function ExecutionStepperClient({
                             }
                             className="bg-brand/5 border border-border rounded-lg px-2 py-1 text-[10px] font-semibold text-foreground outline-none focus:border-brand/40"
                           >
-                            <option value="TypeScript">TypeScript</option>
-                            <option value="JavaScript">JavaScript</option>
-                            <option value="Python">Python</option>
+                            <option
+                              value="TypeScript"
+                              className="bg-neutral-950 text-foreground"
+                            >
+                              TypeScript
+                            </option>
+                            <option
+                              value="JavaScript"
+                              className="bg-neutral-950 text-foreground"
+                            >
+                              JavaScript
+                            </option>
+                            <option
+                              value="Python"
+                              className="bg-neutral-950 text-foreground"
+                            >
+                              Python
+                            </option>
                           </select>
                           <button
                             onClick={handleGenerateScript}

@@ -35,7 +35,11 @@ exports.generateProject = async (req, res) => {
     let text = "";
 
     if (req.file) {
-      text = await extractTextFromBuffer(req.file.buffer, req.file.mimetype);
+      text = await extractTextFromBuffer(
+        req.file.buffer,
+        req.file.mimetype,
+        req.file.originalname,
+      );
     }
 
     if (!text && !instructions) {
@@ -236,7 +240,11 @@ exports.generateReport = async (req, res) => {
     const reportType = req.body.reportType || "document";
     let text = "";
     if (req.file) {
-      text = await extractTextFromBuffer(req.file.buffer, req.file.mimetype);
+      text = await extractTextFromBuffer(
+        req.file.buffer,
+        req.file.mimetype,
+        req.file.originalname,
+      );
     }
 
     if (!text && !instructions) {

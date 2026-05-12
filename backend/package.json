@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.35",
+    "@ai-sdk/openai": "^3.0.62",
     "ai": "^6.0.158",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -17,10 +18,12 @@
     "express": "^4.19.2",
     "groq-sdk": "^1.1.2",
     "html-to-docx": "^1.8.0",
+    "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.12.0",
     "marked": "^18.0.3",
     "mongoose": "^9.4.1",
     "multer": "^1.4.5-lts.1",
+    "openai": "^6.36.0",
     "pdf-parse": "^1.1.1",
     "zod": "^4.3.6"
   },

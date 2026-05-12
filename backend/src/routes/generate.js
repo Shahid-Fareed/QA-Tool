@@ -28,11 +28,7 @@ router.post(
 );
 
 // NEW: Convert Markdown to DOCX and stream back for download
-router.post(
-  "/download-docx",
-  requireAuth,
-  generateController.downloadDocx,
-);
+router.post("/download-docx", requireAuth, generateController.downloadDocx);
 
 router.post(
   "/:testCaseId/generate-script",
@@ -60,6 +56,7 @@ router.delete(
   requireAuth,
   assistantController.deleteSession,
 );
+router.post("/chat/export", requireAuth, assistantController.exportArtifacts);
 router.get("/history", requireAuth, assistantController.getHistory);
 
 module.exports = router;

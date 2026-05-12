@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { saveAs } from "file-saver";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -19,9 +20,14 @@ import {
   Check,
   Download,
   Copy,
+  Pencil,
+  Trash2,
+  Save,
+  Share2,
 } from "lucide-react";
 import { apiClientFetch } from "@/lib/api-client";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -88,11 +94,177 @@ function QATable({ text }: { text: string }) {
   const tablePart = tableStart !== -1 ? text.slice(tableStart) : text;
 
   const parsed = parseMarkdownTable(tablePart);
+
+  const [localRows, setLocalRows] = useState<string[][]>([]);
+  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
+  const [editFormData, setEditFormData] = useState<string[]>([]);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(
+    null,
+  );
+
+  // Export to Project states
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [projectList, setProjectList] = useState<any[]>([]);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [exportResult, setExportResult] = useState<{
+    inserted: number;
+    skipped: number;
+    skippedDetails?: { module: string; title: string }[];
+  } | null>(null);
+
+  // Sync streamed updates to state initially and while active.
+  useEffect(() => {
+    if (parsed) {
+      setLocalRows(parsed.rows);
+    }
+  }, [text]);
+
   if (!parsed) return <p className="text-sm text-foreground/60">{text}</p>;
+
+  const reindexRows = (rows: string[][]): string[][] => {
+    if (rows.length === 0) return rows;
+    const firstId = rows[0][0] || "";
+
+    // Look for format "XX-Y." (e.g. "BUG-1.")
+    const dottedMatch = firstId.match(/^([A-Za-z]+-\d+\.)/);
+
+    if (dottedMatch) {
+      const basePrefix = dottedMatch[1];
+      return rows.map((row, i) => {
+        const newRow = [...row];
+        newRow[0] = `${basePrefix}${String(i + 1).padStart(2, "0")}`;
+        return newRow;
+      });
+    }
+
+    // Fallback to original logic if no dotted format found
+    let prefix = "TC-";
+    if (firstId.startsWith("BUG-")) prefix = "BUG-";
+    else if (firstId.startsWith("UC-")) prefix = "UC-";
+    else {
+      const match = firstId.match(/^([A-Za-z]+-)/);
+      if (match) prefix = match[1];
+    }
+
+    return rows.map((row, i) => {
+      const newRow = [...row];
+      newRow[0] = `${prefix}${String(i + 1).padStart(3, "0")}`;
+      return newRow;
+    });
+  };
+
+  const handleDeleteRow = (index: number) => {
+    setDeleteConfirmIndex(index);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirmIndex === null) return;
+    const updated = localRows.filter((_, i) => i !== deleteConfirmIndex);
+    setLocalRows(reindexRows(updated));
+    if (editingRowIndex === deleteConfirmIndex) setEditingRowIndex(null);
+    setDeleteConfirmIndex(null);
+  };
+
+  const handleStartEdit = (index: number) => {
+    setEditingRowIndex(index);
+    setEditFormData([...localRows[index]]);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingRowIndex === null) return;
+    const updated = [...localRows];
+    updated[editingRowIndex] = editFormData;
+    setLocalRows(updated);
+    setEditingRowIndex(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRowIndex(null);
+  };
+
+  // --- Project Export Handlers ---
+  const handleOpenExport = async () => {
+    setIsExportModalOpen(true);
+    setExportResult(null);
+    setSelectedProjectId("");
+    try {
+      const res = await apiClientFetch("/api/projects");
+      const data = await res.json();
+      if (data && data.projects) {
+        setProjectList(data.projects);
+      }
+    } catch (err) {
+      console.error("Failed to load projects:", err);
+    }
+  };
+
+  const handlePerformExport = async () => {
+    if (!selectedProjectId || localRows.length === 0) return;
+    setExportLoading(true);
+
+    try {
+      const firstId = localRows[0]?.[0] || "";
+      let artType = "testcase";
+      if (firstId.startsWith("BUG-")) artType = "bugreport";
+      else if (firstId.startsWith("UC-")) artType = "usecase";
+
+      // Map headers to database field keys
+      const keys = parsed.headers.map((h) => {
+        const text = h.toLowerCase().replace(/[^a-z]/g, "");
+        if (text.includes("module")) return "module";
+        if (text.includes("title") || text.includes("name")) return "title";
+        if (text.includes("precondition")) return "preconditions";
+        if (text.includes("step")) return "stepsToReproduce";
+        if (text.includes("expected")) return "expectedResult";
+        if (text.includes("actual")) return "actualResult";
+        if (text.includes("priority")) return "priority";
+        if (text.includes("severity")) return "severity";
+        if (text.includes("desc")) return "description";
+        if (text.includes("actor")) return "actor";
+        if (text.includes("mainflow")) return "mainFlow";
+        if (text.includes("alternate")) return "alternateFlow";
+        return text;
+      });
+
+      // Map dynamic rows to object payload
+      const finalItems = localRows.map((row) => {
+        const obj: Record<string, string> = {};
+        row.forEach((val, i) => {
+          const k = keys[i];
+          if (k) obj[k] = val;
+        });
+        return obj;
+      });
+
+      const res = await apiClientFetch("/api/generate/chat/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: selectedProjectId,
+          artifactType: artType,
+          items: finalItems,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setExportResult({
+          inserted: data.insertedCount ?? 0,
+          skipped: data.skippedCount ?? 0,
+          skippedDetails: data.skippedDetails || [],
+        });
+      }
+    } catch (err) {
+      console.error("Export failed:", err);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const handleCopy = async () => {
     const headerStr = parsed.headers.join("\t");
-    const rowsStr = parsed.rows.map((row) => row.join("\t")).join("\n");
+    const rowsStr = localRows.map((row) => row.join("\t")).join("\n");
     const plainText = `${headerStr}\n${rowsStr}`;
 
     const htmlTable = `
@@ -103,7 +275,7 @@ function QATable({ text }: { text: string }) {
           </tr>
         </thead>
         <tbody>
-          ${parsed.rows
+          ${localRows
             .map(
               (row, ri) => `
             <tr style="background-color: ${ri % 2 === 0 ? "#ffffff" : "#f9fafb"}; border-bottom: 1px solid #e5e7eb;">
@@ -164,79 +336,388 @@ function QATable({ text }: { text: string }) {
                   {h}
                 </th>
               ))}
-              {/* Copy icon as last column header */}
+              {/* Action icons in last column header */}
               <th className="px-4 py-3 text-right whitespace-nowrap">
-                <button
-                  onClick={handleCopy}
-                  title={copied ? "Copied!" : "Copy Table"}
-                  className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 hover:bg-brand/10 hover:text-brand border border-border/50 text-foreground/50 transition-all"
-                >
-                  {copied ? (
-                    <Check className="w-3 h-3" />
-                  ) : (
-                    <Copy className="w-3 h-3 " />
-                  )}
-                </button>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={handleCopy}
+                    title={copied ? "Copied!" : "Copy Table"}
+                    className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 hover:bg-brand/10 hover:text-brand border border-border/50 text-foreground/50 transition-all"
+                  >
+                    {copied ? (
+                      <Check className="w-3 h-3" />
+                    ) : (
+                      <Copy className="w-3 h-3 " />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleOpenExport}
+                    title="Export to Project"
+                    className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 hover:bg-brand/10 hover:text-brand border border-border/50 text-foreground/50 transition-all"
+                  >
+                    <Share2 className="w-3 h-3" />
+                  </button>
+                </div>
               </th>
             </tr>
           </thead>
           <tbody>
-            {parsed.rows.map((row, ri) => (
-              <tr
-                key={ri}
-                className={cn(
-                  "border-b border-border/50 transition-colors hover:bg-brand/3",
-                  ri % 2 === 0 ? "bg-transparent" : "bg-foreground/1",
-                )}
-              >
-                {row.map((cell, ci) => {
-                  const headerName = parsed.headers[ci] || "";
-                  const isBadge = BADGE_COLUMNS.has(headerName);
-                  const isId =
-                    ci === 0 &&
-                    (cell.startsWith("TC-") ||
-                      cell.startsWith("BUG-") ||
-                      cell.startsWith("UC-"));
+            {localRows.map((row, ri) => {
+              const isEditing = editingRowIndex === ri;
+              return (
+                <tr
+                  key={ri}
+                  className={cn(
+                    "border-b border-border/50 transition-colors hover:bg-brand/3",
+                    ri % 2 === 0 ? "bg-transparent" : "bg-foreground/1",
+                    isEditing && "bg-brand/5",
+                  )}
+                >
+                  {row.map((cell, ci) => {
+                    const headerName = parsed.headers[ci] || "";
+                    const isBadge = BADGE_COLUMNS.has(headerName);
+                    const isId =
+                      ci === 0 &&
+                      (cell.startsWith("TC-") ||
+                        cell.startsWith("BUG-") ||
+                        cell.startsWith("UC-"));
 
-                  return (
-                    <td
-                      key={ci}
-                      className="px-4 py-3 align-top text-foreground/80 leading-relaxed"
-                    >
-                      {isBadge ? (
-                        <Badge value={cell} />
-                      ) : isId ? (
-                        <span className="font-mono font-bold text-brand text-[11px]">
-                          {cell}
-                        </span>
+                    return (
+                      <td
+                        key={ci}
+                        className="px-4 py-3 align-top text-foreground/80 leading-relaxed"
+                      >
+                        {isEditing && !isId ? (
+                          isBadge ? (
+                            <select
+                              value={editFormData[ci] || ""}
+                              onChange={(e) => {
+                                const d = [...editFormData];
+                                d[ci] = e.target.value;
+                                setEditFormData(d);
+                              }}
+                              className="w-full h-8 bg-surface border border-border text-foreground px-2 py-1 rounded-md outline-none focus:border-brand text-xs font-semibold appearance-none cursor-pointer"
+                            >
+                              {/* Get current value as fallback, and list standard valid options */}
+                              {(() => {
+                                let options = [
+                                  "Critical",
+                                  "High",
+                                  "Medium",
+                                  "Low",
+                                ];
+                                if (headerName === "Status") {
+                                  options = ["Open", "Pending", "Done"];
+                                }
+                                const curVal = editFormData[ci];
+                                const finalOpts = [...options];
+                                if (curVal && !finalOpts.includes(curVal)) {
+                                  finalOpts.unshift(curVal);
+                                }
+                                return finalOpts.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ));
+                              })()}
+                            </select>
+                          ) : (
+                            <textarea
+                              value={editFormData[ci] || ""}
+                              onChange={(e) => {
+                                const d = [...editFormData];
+                                d[ci] = e.target.value;
+                                setEditFormData(d);
+                              }}
+                              className="w-full min-h-[60px] bg-surface border border-border text-foreground px-2 py-1 rounded-md outline-none focus:border-brand text-xs resize-y"
+                            />
+                          )
+                        ) : isBadge ? (
+                          <Badge value={cell} />
+                        ) : isId ? (
+                          <span className="font-mono font-bold text-brand text-[11px] whitespace-nowrap">
+                            {cell}
+                          </span>
+                        ) : (
+                          <span>
+                            {cell.split(/<br\s*\/?>/i).map((line, idx) => (
+                              <React.Fragment key={idx}>
+                                {idx > 0 && <br />}
+                                {line}
+                              </React.Fragment>
+                            ))}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  {/* Inline Row Actions */}
+                  <td className="px-4 py-3 text-right align-top whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={handleSaveEdit}
+                            title="Save Change"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-brand/20 text-brand hover:bg-brand hover:text-white transition-all shadow-sm"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            title="Cancel"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 text-foreground/50 hover:bg-foreground/10 transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
                       ) : (
-                        <span>
-                          {cell.split(/<br\s*\/?>/i).map((line, idx) => (
-                            <React.Fragment key={idx}>
-                              {idx > 0 && <br />}
-                              {line}
-                            </React.Fragment>
-                          ))}
-                        </span>
+                        <>
+                          <button
+                            onClick={() => handleStartEdit(ri)}
+                            title="Edit Row"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 text-foreground/40 hover:bg-brand/10 hover:text-brand border border-border/30 transition-all"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRow(ri)}
+                            title="Delete Row"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 text-foreground/40 hover:bg-red-500/10 hover:text-red-500 border border-border/30 transition-all"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </>
                       )}
-                    </td>
-                  );
-                })}
-                {/* Empty td to match the copy-icon th column */}
-                <td />
-              </tr>
-            ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         <div className="px-4 py-2 border-t border-border/50 flex items-center justify-between">
           <span className="text-[10px] font-semibold text-foreground/50 uppercase tracking-widest">
-            {parsed.rows.length} item{parsed.rows.length !== 1 ? "s" : ""}
-          </span>
-          <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-widest">
-            QA Assistant
+            {(() => {
+              const firstRowId = localRows[0]?.[0] || "";
+              let label = "item";
+              if (firstRowId.startsWith("TC-")) label = "test case";
+              else if (firstRowId.startsWith("BUG-")) label = "bug";
+              else if (firstRowId.startsWith("UC-")) label = "use case";
+
+              return `${localRows.length} ${label}${localRows.length !== 1 ? "s" : ""}`;
+            })()}
           </span>
         </div>
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteConfirmIndex !== null && (
+        <div className="fixed inset-0 z-999 flex items-center justify-center bg-background/60 backdrop-blur-md animate-in fade-in duration-300 px-4">
+          <div className="bg-surface border border-border/80 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] rounded-2xl w-full max-w-xs p-5 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-red-500">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-foreground tracking-tight mb-1">
+              Delete this row?
+            </h3>
+            <p className="text-xs text-foreground/60 leading-relaxed mb-6">
+              This will permanently remove this item. This action cannot be
+              undone.
+            </p>
+            <div className="w-full grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setDeleteConfirmIndex(null)}
+                className="w-full py-2 px-3 text-xs font-semibold bg-foreground/5 hover:bg-foreground/10 text-foreground rounded-xl transition-all border border-border/50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="w-full py-2 px-3 text-xs font-semibold bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all shadow-md shadow-red-500/20"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Export to Project Modal */}
+      {typeof document !== "undefined" &&
+        isExportModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-100 flex items-center justify-center bg-background/60 backdrop-blur-md animate-in fade-in duration-300 px-4">
+            <div className="bg-surface border border-border/80 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] rounded-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200 flex flex-col relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <button
+                onClick={() => setIsExportModalOpen(false)}
+                className="absolute top-4 right-4 text-foreground/40 hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground tracking-tight">
+                    Export to Project
+                  </h3>
+                  <p className="text-xs text-foreground/60">
+                    Bulk import your items into a specific workspace.
+                  </p>
+                </div>
+              </div>
+
+              {!exportResult ? (
+                <>
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-foreground/50 mb-1.5 block">
+                        Select Destination Project
+                      </label>
+                      <select
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        className="w-full bg-foreground/5 border border-border/50 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all text-foreground"
+                        disabled={exportLoading}
+                      >
+                        <option
+                          value=""
+                          className="bg-surface text-foreground/50"
+                        >
+                          Select a project...
+                        </option>
+                        {projectList.map((p) => (
+                          <option
+                            key={p.id}
+                            value={p.id}
+                            className="bg-surface text-foreground"
+                          >
+                            {p.projectName}
+                          </option>
+                        ))}
+                      </select>
+                      {projectList.length === 0 && !exportLoading && (
+                        <p className="text-[10px] text-yellow-500/80 mt-1.5">
+                          No available projects found. Please create one first.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="bg-foreground/2 border border-border/30 rounded-xl p-3 flex items-start gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5" />
+                      <p className="text-[11px] text-foreground/60 leading-relaxed">
+                        Duplicate check: If an item with the exact same title
+                        already exists in the target project, it will be skipped
+                        automatically.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-full flex justify-end gap-3">
+                    <button
+                      onClick={() => setIsExportModalOpen(false)}
+                      disabled={exportLoading}
+                      className="py-2 px-4 text-xs font-semibold bg-transparent hover:bg-foreground/5 text-foreground rounded-xl transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handlePerformExport}
+                      disabled={!selectedProjectId || exportLoading}
+                      className="py-2 px-6 text-xs font-semibold bg-brand hover:bg-brand-dark disabled:opacity-50 text-white rounded-xl transition-all shadow-md shadow-brand/20 flex items-center gap-2"
+                    >
+                      {exportLoading ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>Export Now</>
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-2 flex flex-col items-center w-full">
+                  <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-4 text-green-500">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-lg font-bold text-foreground mb-1">
+                    Export Completed!
+                  </h4>
+                  <p className="text-xs text-foreground/60 mb-6 max-w-[250px]">
+                    Items have been successfully synced to your project.
+                  </p>
+
+                  <div className="w-full grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-foreground/3 border border-border/50 rounded-2xl p-4 flex flex-col items-center">
+                      <span className="text-2xl font-bold text-foreground">
+                        {exportResult.inserted}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-foreground/40">
+                        Added
+                      </span>
+                    </div>
+                    <div className="bg-foreground/3 border border-border/50 rounded-2xl p-4 flex flex-col items-center">
+                      <span className="text-2xl font-bold text-foreground">
+                        {exportResult.skipped}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-foreground/40">
+                        Skipped
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* List individual skipped detail items */}
+                  {exportResult.skippedDetails &&
+                    exportResult.skippedDetails.length > 0 && (
+                      <div className="w-full bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 mb-6 text-left">
+                        <h5 className="text-[10px] font-bold text-yellow-500/80 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          Skipped Items (Already Exist)
+                        </h5>
+                        <div className="max-h-[120px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                          {exportResult.skippedDetails.map((detail, idx) => (
+                            <div
+                              key={idx}
+                              className="text-[11px] leading-snug bg-surface/50 p-2 rounded-lg border border-border/30"
+                            >
+                              <span className="font-bold text-foreground/70 mr-1.5 opacity-75">
+                                [{detail.module}]
+                              </span>
+                              <span className="text-foreground/60">
+                                {detail.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  <div className="w-full flex flex-col gap-2">
+                    <Link
+                      href={`/projects/${selectedProjectId}`}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold bg-brand text-white hover:bg-brand/90 rounded-xl transition-all shadow-lg shadow-brand/20"
+                    >
+                      Go to Project
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <button
+                      onClick={() => setIsExportModalOpen(false)}
+                      className="w-full py-2 px-4 text-xs font-semibold text-foreground/60 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-all"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -1231,9 +1712,9 @@ export function QAAssistantChat({
                     )}
                   </div>
 
-                  <span className="text-[9px] font-semibold text-foreground/50 uppercase tracking-[0.2em] mt-3 px-2">
-                    {m.role === "user" ? "You" : "QA Assistant"}
-                  </span>
+                  {m.role === "user" && (
+                    <span className="text-[9px] font-semibold text-foreground/50 uppercase tracking-[0.2em] mt-3 px-2"></span>
+                  )}
                 </div>
               );
             })}
