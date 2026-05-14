@@ -8,11 +8,7 @@ import {
   ChevronDown,
   Check,
   Loader2,
-  Shield,
-  Terminal,
-  Wifi,
-  ExternalLink,
-  Image as ImageIcon,
+
 } from "lucide-react";
 import Link from "next/link";
 import { apiClientFetch } from "@/lib/api-client";
@@ -503,14 +499,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
             </div>
           )}
 
-          {/* Extension Capture Data (Bugs captured via extension) */}
-          {!isEditMode &&
-            itemType === "bugs" &&
-            selectedItem.capturedVia === "extension" && (
-              <div className="mt-8 pt-8 border-t border-purple-500/20">
-                <ExtensionCapturePanel item={selectedItem} />
-              </div>
-            )}
+
 
           {/* Connected Use Case Cross-Reference (View Mode Only) */}
           {!isEditMode && selectedItem.linkedUseCase && (
@@ -584,185 +573,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
   );
 };
 
-// ── Extension Capture Panel ──────────────────────────────────────────
-function ExtensionCapturePanel({ item }: { item: any }) {
-  const [showLogs, setShowLogs] = useState(false);
-  const [showNetwork, setShowNetwork] = useState(false);
-  const [imgExpanded, setImgExpanded] = useState(false);
 
-  const hasScreenshot = !!item.screenshot;
-  const consoleLogs = item.consoleLogs || [];
-  const networkErrors = item.networkErrors || [];
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Shield className="w-4 h-4 text-purple-400 shrink-0" />
-        <h4 className="text-purple-400 text-sm font-semibold uppercase tracking-widest">
-          Captured via Extension
-        </h4>
-        {/* Reporter badge */}
-        {item.reportedByName && (
-          <span className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-            <svg
-              width="9"
-              height="9"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {item.reportedByName}
-            {item.reportedByEmail && (
-              <span className="text-purple-400/60 font-normal">
-                · {item.reportedByEmail}
-              </span>
-            )}
-          </span>
-        )}
-        {item.pageUrl && (
-          <a
-            href={item.pageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1 text-[10px] text-foreground/40 hover:text-purple-400 transition-colors truncate max-w-[220px]"
-          >
-            <ExternalLink className="w-3 h-3 shrink-0" />
-            {item.pageUrl}
-          </a>
-        )}
-      </div>
-
-      {/* Screenshot */}
-      {hasScreenshot && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/50 uppercase tracking-widest">
-            <ImageIcon className="w-3.5 h-3.5" />
-            Screenshot
-          </div>
-          <div
-            className={`relative rounded-xl overflow-hidden border border-purple-500/20 cursor-zoom-in transition-all ${
-              imgExpanded ? "max-h-[600px]" : "max-h-[140px]"
-            }`}
-            onClick={() => setImgExpanded(!imgExpanded)}
-          >
-            <img
-              src={item.screenshot}
-              alt="Captured screenshot"
-              className="w-full object-cover object-top"
-            />
-            {!imgExpanded && (
-              <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent flex items-end justify-center pb-2">
-                <span className="text-[10px] text-white/70 font-semibold">
-                  Click to expand
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Console Logs */}
-      {consoleLogs.length > 0 && (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
-          <button
-            onClick={() => setShowLogs(!showLogs)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-500/5 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Terminal className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-xs font-semibold text-amber-400">
-                Console Logs
-              </span>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-mono">
-                {consoleLogs.length}
-              </span>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-amber-400/50 transition-transform ${showLogs ? "rotate-180" : ""}`}
-            />
-          </button>
-          {showLogs && (
-            <div className="px-4 pb-4 space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-              {consoleLogs.map((log: string, i: number) => (
-                <div
-                  key={i}
-                  className="font-mono text-[10px] text-amber-200/70 bg-amber-950/30 px-2 py-1 rounded leading-relaxed break-all"
-                >
-                  {log}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Network Errors */}
-      {networkErrors.length > 0 && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 overflow-hidden">
-          <button
-            onClick={() => setShowNetwork(!showNetwork)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-red-500/5 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Wifi className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-xs font-semibold text-red-400">
-                Network Errors
-              </span>
-              <span className="text-[10px] bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded-full font-mono">
-                {networkErrors.length}
-              </span>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-red-400/50 transition-transform ${showNetwork ? "rotate-180" : ""}`}
-            />
-          </button>
-          {showNetwork && (
-            <div className="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {networkErrors.map((err: any, i: number) => (
-                <div
-                  key={i}
-                  className="font-mono text-[10px] bg-red-950/30 px-3 py-2 rounded flex items-center gap-3"
-                >
-                  <span
-                    className={`font-bold ${
-                      err.status >= 500
-                        ? "text-red-400"
-                        : err.status >= 400
-                          ? "text-orange-400"
-                          : "text-red-300"
-                    }`}
-                  >
-                    {err.status || "ERR"}
-                  </span>
-                  <span className="text-red-300/60 uppercase text-[9px]">
-                    {err.method || "GET"}
-                  </span>
-                  <span className="text-red-200/60 truncate">{err.url}</span>
-                  <span className="text-foreground/20 ml-auto shrink-0">
-                    {err.ts}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {!hasScreenshot &&
-        consoleLogs.length === 0 &&
-        networkErrors.length === 0 && (
-          <p className="text-xs text-foreground/30 italic">
-            No additional capture data was recorded.
-          </p>
-        )}
-    </div>
-  );
-}
 
 // Helper inside file for now
 function canEditAnywhere(currentUser: CurrentUser | null) {

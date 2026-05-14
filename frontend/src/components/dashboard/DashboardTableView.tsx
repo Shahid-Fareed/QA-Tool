@@ -1049,23 +1049,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                                   NEW
                                 </span>
                               )}
-                              {col.key === "customId" &&
-                                item.capturedVia === "extension" && (
-                                  <span className="bg-purple-500/10 text-purple-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-purple-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap">
-                                    <svg
-                                      width="8"
-                                      height="8"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2.5"
-                                    >
-                                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                      <path d="m9 12 2 2 4-4" />
-                                    </svg>
-                                    EXT
-                                  </span>
-                                )}
+
                               {col.key === "customId" &&
                                 item.capturedVia === "chat" && (
                                   <span
