@@ -84,8 +84,16 @@ export function QADataDisplayWrapper({
     generate(file, instructions);
   };
 
+  const isFullChat = !!(isChatMode || isGenerating || sessionId);
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full px-6 max-w-[1400px] mx-auto">
+    <div
+      className={
+        isFullChat
+          ? "animate-in fade-in duration-700 w-full"
+          : "space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full px-6 max-w-[1400px] mx-auto"
+      }
+    >
       {showHeader && (
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mt-8 md:mt-12 mb-8">
           <div className="space-y-2 max-w-xl">
@@ -112,7 +120,7 @@ export function QADataDisplayWrapper({
         </div>
       )}
 
-      <div className="space-y-10 w-full pb-16">
+      <div className={isFullChat ? "w-full pb-0" : "space-y-10 w-full pb-16"}>
         {error && !isChatMode && (
           <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
             <div className="w-full max-w-4xl p-6 rounded-2xl border border-red-500/30 bg-red-500/10 backdrop-blur-md shadow-[0_0_20px_rgba(239,68,68,0.2)] text-red-500 relative overflow-hidden">

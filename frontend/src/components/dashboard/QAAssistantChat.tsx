@@ -24,6 +24,7 @@ import {
   Trash2,
   Save,
   Share2,
+  Camera,
 } from "lucide-react";
 import { apiClientFetch } from "@/lib/api-client";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -87,11 +88,22 @@ const BADGE_COLUMNS = new Set(["Priority", "Status", "Severity"]);
 function QATable({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
-  // Extract heading and table portion
-  const headingMatch = text.match(/^(###[^\n]+)\n/);
-  const heading = headingMatch ? headingMatch[1].replace(/^###\s*/, "") : "";
+  // Extract portion before table and table portion
   const tableStart = text.indexOf("|");
+  const beforeTable = tableStart !== -1 ? text.slice(0, tableStart) : "";
   const tablePart = tableStart !== -1 ? text.slice(tableStart) : text;
+
+  // Find ### heading anywhere before the table
+  const headingMatch = beforeTable.match(/###\s*(.*?)(?:\r?\n|$)/);
+  const heading = headingMatch ? headingMatch[1].trim() : "";
+
+  // Extract any intro conversational text before the heading
+  let introText = "";
+  if (headingMatch) {
+    introText = beforeTable.split(/###/)[0].trim();
+  } else {
+    introText = beforeTable.trim();
+  }
 
   const parsed = parseMarkdownTable(tablePart);
 
@@ -309,6 +321,11 @@ function QATable({ text }: { text: string }) {
 
   return (
     <div className="w-full space-y-3">
+      {introText && (
+        <div className="text-sm text-foreground/90 leading-relaxed prose prose-sm dark:prose-invert max-w-none px-1 animate-in fade-in duration-300">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{introText}</ReactMarkdown>
+        </div>
+      )}
       <div className="flex items-center gap-4">
         {heading ? (
           <div className="flex items-center gap-2">
@@ -767,6 +784,7 @@ export function QAAssistantChat({
   const [loadingSession, setLoadingSession] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [reportType, setReportType] = useState<"document" | "code">("document");
+  const [awaitingManualInput, setAwaitingManualInput] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastFileRef = useRef<{ file: File; instructions: string } | null>(null);
   const pendingFileRef = useRef<{ file: File; instructions: string } | null>(
@@ -778,6 +796,9 @@ export function QAAssistantChat({
   const showCenteredLayout =
     messages.length === 0 ||
     (messages.length === 1 && messages[0].id === "welcome-init");
+
+  const hasActiveFilePrompt =
+    messages.some((m) => m.isFilePrompt) && !awaitingManualInput;
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -949,8 +970,83 @@ export function QAAssistantChat({
     }
   };
 
-  const handleSend = async (actionType?: "audit" | "testcases") => {
-    if (!input.trim() && !selectedFile && !actionType) return;
+  const handleSend = async (actionType?: "audit" | "testcases" | "manual") => {
+    if (!input.trim() && !selectedFile && !actionType && !awaitingManualInput)
+      return;
+
+    // ── Intercept text send if we are awaiting custom manual instructions ──
+    // Route through the regular CHAT path (not file-report) so inline tables
+    // are generated when the user types "test case", "bug", "use case", etc.
+    if (awaitingManualInput && pendingFileRef.current && !actionType) {
+      const customInstructions = input.trim();
+      if (!customInstructions) return;
+
+      // Hold a reference to the file before clearing pending state
+      const fileToUpload = pendingFileRef.current?.file;
+
+      // Clear the awaiting state and remove the file-prompt bubble from chat
+      setAwaitingManualInput(false);
+      pendingFileRef.current = null;
+      setMessages((prev) => prev.filter((m) => !m.isFilePrompt));
+
+      // Inject a user message and route through the normal chat endpoint
+      const userMessage: Message = {
+        role: "user",
+        text: customInstructions,
+        id: Date.now().toString(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInput("");
+      setIsTyping(true);
+
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const formData = new FormData();
+        formData.append("message", customInstructions);
+        if (sessionId) formData.append("sessionId", sessionId);
+        if (fileToUpload) {
+          formData.append("file", fileToUpload);
+        }
+
+        const res = await apiClientFetch("/api/generate/chat", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error("Failed to chat");
+
+        const data = await res.json();
+        setSessionId(data.sessionId);
+
+        const aiMessage: Message = {
+          role: "ai",
+          text: data.text,
+          id: (Date.now() + 1).toString(),
+        };
+
+        if (data.action === "generate" && data.triggerInfo) {
+          setMessages((prev) => [...prev, aiMessage]);
+          onFileSelect(
+            null,
+            `Module: ${data.triggerInfo.moduleName}. Context: ${data.triggerInfo.projectInfo}`,
+          );
+        } else {
+          setMessages((prev) => [...prev, aiMessage]);
+        }
+        window.dispatchEvent(new CustomEvent("assistant-history-updated"));
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        console.error(err);
+      } finally {
+        if (abortControllerRef.current === controller) {
+          setIsTyping(false);
+        }
+      }
+      return;
+    }
 
     // ── File uploaded without an action: show the "what do you want?" prompt ──
     if (selectedFile && !actionType) {
@@ -994,9 +1090,26 @@ export function QAAssistantChat({
           ? lastFileRef.current.instructions
             ? `Perform a complete QA audit report on this file. Instructions: ${lastFileRef.current.instructions}`
             : "Perform a complete QA audit report on this file."
-          : lastFileRef.current.instructions
-            ? `Generate a detailed test cases table for this file. Instructions: ${lastFileRef.current.instructions}`
-            : "Generate a detailed test cases table for this file formatted as a markdown table.";
+          : actionType === "testcases"
+            ? lastFileRef.current.instructions
+              ? `Generate a detailed test cases table for this file. Instructions: ${lastFileRef.current.instructions}`
+              : "Generate a detailed test cases table for this file formatted as a markdown table."
+            : lastFileRef.current.instructions ||
+              "Analyze this file and provide findings.";
+
+      // User message label for the chosen action
+      const actionLabel =
+        actionType === "audit"
+          ? "Perform Audit"
+          : actionType === "testcases"
+            ? "Generate Test Cases"
+            : lastFileRef.current.instructions || "Manual instruction";
+
+      const actionUserMessage: Message = {
+        role: "user",
+        text: actionLabel,
+        id: (Date.now() - 1).toString(),
+      };
 
       const aiMessageId = Date.now().toString();
       const aiMessage: Message = {
@@ -1008,10 +1121,12 @@ export function QAAssistantChat({
         isTestCases: actionType === "testcases",
       };
 
-      // Replace the file-prompt message with the generating message
-      setMessages((prev) =>
-        prev.map((m) => (m.isFilePrompt ? { ...aiMessage } : m)),
-      );
+      // Replace the file-prompt bubble with the user action label + empty AI message
+      setMessages((prev) => [
+        ...prev.filter((m) => !m.isFilePrompt),
+        actionUserMessage,
+        aiMessage,
+      ]);
       setIsTyping(true);
 
       try {
@@ -1215,7 +1330,7 @@ export function QAAssistantChat({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-28px)] w-full bg-surface border-x md:border-x-0 border-t border-border overflow-x-hidden relative group animate-in fade-in duration-500">
+    <div className="flex flex-col h-[calc(100vh-2px)] w-full bg-surface border-x md:border-x-0 border-t border-border overflow-x-hidden relative group animate-in fade-in duration-500">
       {/* Header */}
       <div className="px-8 py-4 border-b border-border bg-surface/80 backdrop-blur-md flex items-center justify-between z-20">
         <div className="flex items-center gap-4">
@@ -1251,7 +1366,11 @@ export function QAAssistantChat({
           {selectedFile && (
             <div className="w-full max-w-2xl flex justify-start mb-3 animate-in zoom-in duration-300">
               <div className="flex items-center gap-2 bg-brand/10 px-3 py-2 rounded-xl border border-brand/20 w-fit font-medium">
-                <FileText className="w-3.5 h-3.5 text-brand" />
+                {selectedFile.type.startsWith("image/") ? (
+                  <Camera className="w-3.5 h-3.5 text-brand" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5 text-brand" />
+                )}
                 <span className="text-[10px] font-semibold text-brand uppercase truncate max-w-[150px]">
                   {selectedFile.name}
                 </span>
@@ -1283,7 +1402,7 @@ export function QAAssistantChat({
                       type="file"
                       className="hidden"
                       onChange={handleFileChange}
-                      accept=".pdf,.docx,.txt,.js,.jsx,.ts,.tsx,.py,.java"
+                      accept=".pdf,.docx,.txt,.js,.jsx,.ts,.tsx,.py,.java,image/*"
                     />
                   </label>
                 </Tooltip>
@@ -1374,6 +1493,8 @@ export function QAAssistantChat({
 
               const isDocx = fileName?.toLowerCase().endsWith(".docx");
               const isPdf = fileName?.toLowerCase().endsWith(".pdf");
+              const isImage =
+                fileName && /\.(png|jpe?g|webp|gif|bmp)$/i.test(fileName);
               const isTable =
                 m.role === "ai" && !m.isReport && isTableMessage(m.text);
 
@@ -1411,13 +1532,17 @@ export function QAAssistantChat({
                               ? "bg-blue-500/10 text-blue-500"
                               : isPdf
                                 ? "bg-red-500/10 text-red-500"
-                                : "bg-brand/10 text-brand",
+                                : isImage
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : "bg-brand/10 text-brand",
                           )}
                         >
                           {isDocx ? (
                             <FileCode className="w-6 h-6" />
                           ) : isPdf ? (
                             <FileText className="w-6 h-6" />
+                          ) : isImage ? (
+                            <Camera className="w-6 h-6" />
                           ) : (
                             <Upload className="w-6 h-6" />
                           )}
@@ -1436,38 +1561,59 @@ export function QAAssistantChat({
                     {/* File prompt: AI asking what to do with the uploaded file */}
                     {m.isFilePrompt && (
                       <div className="bg-surface border border-border rounded-[28px] rounded-tl-none px-6 py-5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <p className="text-sm font-medium text-foreground mb-4">
-                          I received{" "}
-                          <span className="font-semibold text-brand">
-                            {m.pendingFileName}
-                          </span>
-                          . What would you like me to do with it?
-                        </p>
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <button
-                            onClick={() => handleSend("audit")}
-                            disabled={isProcessing}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand/80 hover:bg-brand text-white text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-brand/10 disabled:opacity-50"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Perform Audit
-                          </button>
-                          <button
-                            onClick={() => handleSend("testcases")}
-                            disabled={isProcessing}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground hover:bg-brand/10 hover:border-brand/30 hover:text-brand text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                          >
-                            <Table2 className="w-3.5 h-3.5" />
-                            Generate Test Cases
-                          </button>
-                        </div>
+                        {awaitingManualInput ? (
+                          <div className="flex items-center gap-3 text-brand">
+                            <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center shrink-0 animate-pulse">
+                              <Pencil className="w-4 h-4" />
+                            </div>
+                            <p className="text-sm font-medium text-foreground">
+                              Ready! Type your manual instructions
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-foreground mb-4">
+                              I received{" "}
+                              <span className="font-semibold text-brand">
+                                {m.pendingFileName}
+                              </span>
+                              . What would you like me to do with it?
+                            </p>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <button
+                                onClick={() => handleSend("audit")}
+                                disabled={isProcessing}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand/80 hover:bg-brand text-white text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-brand/10 disabled:opacity-50"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Perform Audit
+                              </button>
+                              <button
+                                onClick={() => handleSend("testcases")}
+                                disabled={isProcessing}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground hover:bg-brand/10 hover:border-brand/30 hover:text-brand text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                              >
+                                <Table2 className="w-3.5 h-3.5" />
+                                Generate Test Cases
+                              </button>
+                              <button
+                                onClick={() => setAwaitingManualInput(true)}
+                                disabled={isProcessing}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground hover:bg-brand/10 hover:border-brand/30 hover:text-brand text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                Manual instruction
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
 
                     {/* Message body — table or plain text */}
                     {!m.isFilePrompt && isTable ? (
                       <div className="w-full px-0 py-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <QATable text={m.text} />
+                        <QATable text={remainingText} />
                       </div>
                     ) : (
                       remainingText && (
@@ -1733,11 +1879,15 @@ export function QAAssistantChat({
           </div>
 
           {/* Input Area */}
-          <div className="p-6 bg-surface/80 backdrop-blur-md border-t border-border z-10">
+          <div className="pt-4 pb-4 px-6 bg-surface/80 backdrop-blur-md border-t border-border z-10">
             {selectedFile && (
               <div className="w-full max-w-2xl mx-auto flex justify-start mb-3 animate-in zoom-in duration-300">
                 <div className="flex items-center gap-2 bg-brand/10 px-3 py-2 rounded-xl border border-brand/20 w-fit font-medium">
-                  <FileText className="w-3.5 h-3.5 text-brand" />
+                  {selectedFile.type.startsWith("image/") ? (
+                    <Camera className="w-3.5 h-3.5 text-brand" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5 text-brand" />
+                  )}
                   <span className="text-[10px] font-semibold text-brand uppercase truncate max-w-[150px]">
                     {selectedFile.name}
                   </span>
@@ -1762,14 +1912,22 @@ export function QAAssistantChat({
                     content="Upload requirements (.pdf, .docx, .txt)"
                     side="top"
                   >
-                    <label className="h-10 w-10 flex items-center justify-center rounded-full bg-foreground/5 text-foreground/60 hover:text-brand hover:bg-brand/10 cursor-pointer transition-all shrink-0">
+                    <label
+                      className={cn(
+                        "h-10 w-10 flex items-center justify-center rounded-full bg-foreground/5 text-foreground/60 transition-all shrink-0",
+                        hasActiveFilePrompt
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:text-brand hover:bg-brand/10 cursor-pointer",
+                      )}
+                    >
                       <Plus className="w-5 h-5" />
                       <input
                         ref={fileInputRef}
                         type="file"
                         className="hidden"
                         onChange={handleFileChange}
-                        accept=".pdf,.docx,.txt,.js,.jsx,.ts,.tsx,.py,.java"
+                        accept=".pdf,.docx,.txt,.js,.jsx,.ts,.tsx,.py,.java,image/*"
+                        disabled={hasActiveFilePrompt || isTyping || isProcessing}
                       />
                     </label>
                   </Tooltip>
@@ -1780,22 +1938,34 @@ export function QAAssistantChat({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={
-                    selectedFile
-                      ? `Instructions for ${selectedFile.name}...`
-                      : "Ask anything"
+                    awaitingManualInput
+                      ? `Instructions for ${pendingFileRef.current?.file.name || "file"}...`
+                      : hasActiveFilePrompt
+                        ? "Select an option above to continue..."
+                        : selectedFile
+                          ? `Instructions for ${selectedFile.name}...`
+                          : "Ask anything"
                   }
                   className="flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-foreground/40 text-foreground font-medium px-2"
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  disabled={isProcessing}
+                  disabled={isProcessing || hasActiveFilePrompt || isTyping}
                 />
 
                 <div className="flex items-center gap-3 pr-1 shrink-0">
                   <button
                     onClick={() => handleSend()}
-                    disabled={isProcessing || (!input.trim() && !selectedFile)}
+                    disabled={
+                      isProcessing ||
+                      hasActiveFilePrompt ||
+                      isTyping ||
+                      (!input.trim() && !selectedFile)
+                    }
                     className={cn(
                       "h-10 w-10 rounded-full transition-all flex items-center justify-center shrink-0",
-                      (input.trim() || selectedFile) && !isProcessing
+                      (input.trim() || selectedFile) &&
+                        !isProcessing &&
+                        !hasActiveFilePrompt &&
+                        !isTyping
                         ? "bg-brand/80 hover:bg-brand text-white shadow-lg shadow-brand/10"
                         : "bg-foreground/5 text-foreground/30 cursor-not-allowed border border-border/50",
                     )}

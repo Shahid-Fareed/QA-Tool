@@ -43,7 +43,7 @@ router.patch(
 );
 
 // ── Assistant Chat Routes ──
-router.post("/chat", requireAuth, assistantController.chat);
+router.post("/chat", requireAuth, upload.single("file"), assistantController.chat);
 router.post("/chat/append", requireAuth, assistantController.appendMessages);
 router.get("/chat/:sessionId", requireAuth, assistantController.getSession);
 router.patch(

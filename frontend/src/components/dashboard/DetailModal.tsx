@@ -393,6 +393,13 @@ const DetailModal: React.FC<DetailModalProps> = ({
                                 .includes(uc.moduleId.toLowerCase())
                             );
                           })
+                          .sort((a, b) =>
+                            (a.customId || "").localeCompare(
+                              b.customId || "",
+                              undefined,
+                              { numeric: true, sensitivity: "base" },
+                            ),
+                          )
                           .map((uc) => (
                             <option
                               key={uc._id}
@@ -598,10 +605,22 @@ function ExtensionCapturePanel({ item }: { item: any }) {
         {/* Reporter badge */}
         {item.reportedByName && (
           <span className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <svg
+              width="9"
+              height="9"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
             {item.reportedByName}
             {item.reportedByEmail && (
-              <span className="text-purple-400/60 font-normal">· {item.reportedByEmail}</span>
+              <span className="text-purple-400/60 font-normal">
+                · {item.reportedByEmail}
+              </span>
             )}
           </span>
         )}

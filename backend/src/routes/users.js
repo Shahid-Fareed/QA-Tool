@@ -18,7 +18,7 @@ router.get(
       let query = {};
       if (role === "company_admin") {
         query = {};
-      } else if (role === "manager") {
+      } else if (role === "manager" || role === "hr") {
         query = { role: { $ne: "company_admin" } };
       } else if (role === "team_lead") {
         query = { role: { $nin: ["company_admin", "manager"] } };
@@ -27,7 +27,7 @@ router.get(
       }
 
       const users = await User.find(query)
-        .select("name email role customPermissions employeeId id")
+        .select("name email role customPermissions appliedTemplate employeeId id")
         .lean();
       return res.json(users);
     } catch (err) {
@@ -53,7 +53,7 @@ router.patch("/:userId", requireAuth, async (req, res) => {
 
     const updated = await User.findByIdAndUpdate(userId, updateData, {
       new: true,
-    }).select("name email role customPermissions employeeId id");
+    }).select("name email role customPermissions appliedTemplate employeeId id");
 
     if (!updated) return res.status(404).json({ error: "User not found" });
     return res.json(updated);
@@ -95,11 +95,17 @@ router.post(
   async (req, res) => {
     try {
       await dbConnect();
-      const { name, email, password, role, employeeId } = req.body;
+      const { name, email, password, role, employeeId, appliedTemplate, customPermissions } = req.body;
       if (!name || !email || !password) {
         return res
           .status(400)
           .json({ error: "Name, email, and password are required." });
+      }
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(email.trim())) {
+        return res
+          .status(400)
+          .json({ error: "Please provide a valid email address." });
       }
       const existing = await User.findOne({ email: email.toLowerCase() });
       if (existing)
@@ -125,6 +131,8 @@ router.post(
         password,
         role: role || "employee",
         employeeId: finalEmployeeId,
+        appliedTemplate: appliedTemplate || { id: null, name: null },
+        customPermissions: customPermissions || [],
       });
       return res.status(201).json(newUser);
     } catch (err) {

@@ -621,10 +621,10 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
             <tr>
               {isOverview ? (
                 <>
-                  <th className="px-3 py-4 border-b border-border">
+                  <th className="px-2 py-4 border-b border-border">
                     Module Name
                   </th>
-                  <th className="px-3 py-4 border-b border-border">
+                  <th className="px-2 py-4 border-b border-border">
                     Total {title}
                   </th>
                 </>
@@ -632,7 +632,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                 columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-3 py-4 border-b border-border ${
+                    className={`px-2 py-4 border-b border-border ${
                       col.type === "date"
                         ? "text-center w-[100px] whitespace-nowrap"
                         : ""
@@ -644,7 +644,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
               )}
               {(canEdit || canDelete || isOverview) && (
                 <th
-                  className={`px-3 py-4 border-b border-border text-center ${isOverview ? "text-left min-w-[80px]" : "w-[90px] whitespace-nowrap"}`}
+                  className={`px-2 py-4 border-b border-border text-center ${isOverview ? "text-left min-w-[80px]" : "w-[90px] whitespace-nowrap"}`}
                 >
                   Actions
                 </th>
@@ -722,7 +722,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                           return (
                             <td
                               key={col.key}
-                              className="px-3 py-4"
+                              className="px-2 py-4"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="relative w-fit group/priority">
@@ -757,7 +757,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-3 py-4 whitespace-nowrap"
+                            className="px-2 py-4 whitespace-nowrap"
                           >
                             <span
                               className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border whitespace-nowrap ${getPriorityStyles(val)}`}
@@ -852,7 +852,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                           return (
                             <td
                               key={col.key}
-                              className="px-3 py-4 whitespace-nowrap"
+                              className="px-2 py-4 whitespace-nowrap"
                             >
                               <Link
                                 href={`/projects/${item.projectId}/use-cases?module=${linkedObj.moduleId}&selected=${linkedObj._id}`}
@@ -884,7 +884,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                           return (
                             <td
                               key={col.key}
-                              className="px-3 py-4"
+                              className="px-2 py-4"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="relative w-fit group/status">
@@ -927,7 +927,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                           return (
                             <td
                               key={col.key}
-                              className="px-3 py-4 text-foreground/30 italic"
+                              className="px-2 py-4 text-foreground/30 italic"
                             >
                               None
                             </td>
@@ -940,7 +940,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-3 py-4 whitespace-nowrap"
+                            className="px-2 py-4 whitespace-nowrap"
                           >
                             <span
                               className={`px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-widest border shadow-sm whitespace-nowrap ${badgeInfo.className}`}
@@ -1024,7 +1024,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-3 py-4 text-foreground/75 font-mono text-[10px] uppercase text-center w-[100px] whitespace-nowrap"
+                            className="px-2 py-4 text-foreground/75 font-mono text-[10px] uppercase text-center w-[100px] whitespace-nowrap"
                           >
                             {val
                               ? new Date(val).toLocaleDateString("en-US", {
@@ -1040,7 +1040,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                         return (
                           <td
                             key={col.key}
-                            className="px-4 py-4 font-mono text-xs text-foreground/80 whitespace-nowrap"
+                            className="px-2 py-4 font-mono text-xs text-foreground/80 whitespace-nowrap"
                           >
                             <div className="flex items-center gap-2 whitespace-nowrap">
                               {val}
@@ -1049,28 +1049,54 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                                   NEW
                                 </span>
                               )}
-                              {col.key === "customId" && item.capturedVia === "extension" && (
-                                <span className="bg-purple-500/10 text-purple-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-purple-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap">
-                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-                                  EXT
-                                </span>
-                              )}
-                              {col.key === "customId" && item.capturedVia === "chat" && (
-                                <span className="bg-blue-500/10 text-blue-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-blue-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap" title="Exported from Chat">
-                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                  EXP
-                                </span>
-                              )}
+                              {col.key === "customId" &&
+                                item.capturedVia === "extension" && (
+                                  <span className="bg-purple-500/10 text-purple-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-purple-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap">
+                                    <svg
+                                      width="8"
+                                      height="8"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                    >
+                                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                      <path d="m9 12 2 2 4-4" />
+                                    </svg>
+                                    EXT
+                                  </span>
+                                )}
+                              {col.key === "customId" &&
+                                item.capturedVia === "chat" && (
+                                  <span
+                                    className="bg-blue-500/10 text-blue-400 text-[8px] font-semibold uppercase px-1.5 py-0.5 rounded border border-blue-500/20 flex items-center gap-0.5 h-4 whitespace-nowrap"
+                                    title="Exported from Chat"
+                                  >
+                                    <svg
+                                      width="8"
+                                      height="8"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                    >
+                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                      <polyline points="17 8 12 3 7 8" />
+                                      <line x1="12" y1="3" x2="12" y2="15" />
+                                    </svg>
+                                    EXP
+                                  </span>
+                                )}
                             </div>
                           </td>
                         );
                       }
 
                       return (
-                        <td key={col.key} className="px-3 py-4">
+                        <td key={col.key} className="px-2 py-4">
                           {val ? (
                             <Tooltip content={val}>
-                              <div className="truncate max-w-[140px] text-foreground/85 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                              <div className="truncate max-w-[80px] lg:max-w-[100px] xl:max-w-[130px] 2xl:max-w-[160px] text-foreground/85 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
                                 {val}
                               </div>
                             </Tooltip>
@@ -1081,7 +1107,7 @@ export const DashboardTableView: React.FC<DashboardTableViewProps> = ({
                       );
                     })}
                     {(canEdit || canDelete) && (
-                      <td className="px-3 py-4 w-[90px]">
+                      <td className="px-2 py-4 w-[90px]">
                         <div className="flex items-center justify-center gap-1 transition-opacity">
                           {canEdit && itemType === "test-cases" && (
                             <Tooltip content="Run Test Case">

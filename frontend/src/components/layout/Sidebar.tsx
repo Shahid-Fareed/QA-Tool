@@ -304,17 +304,19 @@ export function Sidebar({
       <aside
         className={`sidebar-shell relative ${effectiveCollapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}
       >
-        <Tooltip
-          content={effectiveCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          side="right"
-        >
-          <button
-            onClick={toggleSidebar}
-            className={`absolute -right-3.5 top-20 z-10 w-7 h-7 rounded-full bg-brand flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer border-2 border-surface ${effectiveCollapsed ? "rotate-180" : ""}`}
+        <div className="hidden lg:block absolute -right-3.5 top-20 z-10">
+          <Tooltip
+            content={effectiveCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            side="right"
           >
-            <ChevronLeft className="w-4 h-4 text-surface font-semibold" />
-          </button>
-        </Tooltip>
+            <button
+              onClick={toggleSidebar}
+              className={`w-7 h-7 rounded-full bg-brand flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer border-2 border-surface ${effectiveCollapsed ? "rotate-180" : ""}`}
+            >
+              <ChevronLeft className="w-4 h-4 text-surface font-semibold" />
+            </button>
+          </Tooltip>
+        </div>
 
         <Brand isCollapsed={effectiveCollapsed} onClose={onClose} />
 
@@ -328,8 +330,8 @@ export function Sidebar({
 
             <NavLink
               href="/"
-              label="QA Assistant"
-              icon={LayoutDashboard}
+              label="QA Chat Assistant"
+              icon={MessageSquare}
               isActive={isActive("/")}
               isCollapsed={effectiveCollapsed}
               onClick={() => {
@@ -392,15 +394,6 @@ export function Sidebar({
                 )}
               </HistorySection>
             )}
-
-            <NavLink
-              href="/?mode=chat"
-              label="Chat"
-              icon={MessageSquare}
-              isActive={searchParams.get("mode") === "chat"}
-              isCollapsed={effectiveCollapsed}
-              onClick={onClose}
-            />
 
             {hasPermission(role, "read:projects", customPermissions) && (
               <NavLink

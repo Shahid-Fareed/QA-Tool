@@ -239,7 +239,9 @@ exports.generateReport = async (req, res) => {
     const instructions = req.body.instructions?.trim() || "";
     const reportType = req.body.reportType || "document";
     let text = "";
-    if (req.file) {
+    const isImage = req.file && req.file.mimetype.startsWith("image/");
+
+    if (req.file && !isImage) {
       text = await extractTextFromBuffer(
         req.file.buffer,
         req.file.mimetype,
@@ -247,7 +249,7 @@ exports.generateReport = async (req, res) => {
       );
     }
 
-    if (!text && !instructions) {
+    if (!isImage && !text && !instructions) {
       return res
         .status(400)
         .json({ error: "No file or instructions provided" });
@@ -351,11 +353,9 @@ You MUST strictly generate ONLY the following structure:
 
 *(Provide a comprehensive, extensive list of test cases spanning all requirements and edge cases).*`;
 
-    const models = [
-      "llama-3.3-70b-versatile",
-      "mixtral-8x7b-32768",
-      "gemma2-9b-it",
-    ];
+    const models = isImage
+      ? ["meta-llama/llama-4-scout-17b-16e-instruct"]
+      : ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"];
 
     let result;
     for (const modelId of models) {
@@ -367,13 +367,35 @@ You MUST strictly generate ONLY the following structure:
           basePrompt = testCasesPrompt;
         }
         const systemPrompt = `${basePrompt}\n\nCRITICAL: DO NOT include any internal CSS, font-sizes, or styling rules in your output. Ignore the 'downloadDocx' styling logic entirely.`;
-        result = streamText({
+
+        const options = {
           model: groq(modelId),
-          system: systemPrompt,
-          prompt: `FILES/REQUIREMENTS:\n${text}\n\nUSER INSTRUCTIONS:\n${instructions}`,
           temperature: 0.3,
           maxOutputTokens: 8192,
-        });
+        };
+
+        if (isImage) {
+          options.messages = [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `${systemPrompt}\n\nUSER INSTRUCTIONS:\n${instructions || "Analyze this screenshot and generate the report according to the specified rules."}\n\nPlease analyze the provided image to fulfill this request.`,
+                },
+                {
+                  type: "image",
+                  image: req.file.buffer,
+                },
+              ],
+            },
+          ];
+        } else {
+          options.system = systemPrompt;
+          options.prompt = `FILES/REQUIREMENTS:\n${text}\n\nUSER INSTRUCTIONS:\n${instructions}`;
+        }
+
+        result = streamText(options);
         break;
       } catch (err) {
         console.warn(

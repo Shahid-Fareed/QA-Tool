@@ -335,6 +335,13 @@ export default function AddItemModal({
                                 .includes(uc.moduleId.toLowerCase())
                             );
                           })
+                          .sort((a, b) =>
+                            (a.customId || "").localeCompare(
+                              b.customId || "",
+                              undefined,
+                              { numeric: true, sensitivity: "base" },
+                            ),
+                          )
                           .map((uc) => (
                             <option
                               key={uc._id}
@@ -390,7 +397,10 @@ export default function AddItemModal({
                       <textarea
                         value={formData.expectedResult}
                         onChange={(e) =>
-                          setFormData({ ...formData, expectedResult: e.target.value })
+                          setFormData({
+                            ...formData,
+                            expectedResult: e.target.value,
+                          })
                         }
                         onFocus={() => {
                           console.log("AddItemModal: Focus on expectedResult");

@@ -19,6 +19,7 @@ const itemRoutes = require("./routes/items");
 const codeEvaluationRoutes = require("./routes/codeEvaluation");
 const statusConfigRoutes = require("./routes/statusConfigs");
 const extensionRoutes = require("./routes/extension");
+const roleTemplateRoutes = require("./routes/roleTemplates");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,6 +44,7 @@ app.use("/api/items", itemRoutes);
 app.use("/api/code-evaluation", codeEvaluationRoutes);
 app.use("/api/status-configs", statusConfigRoutes);
 app.use("/api/extension", extensionRoutes);
+app.use("/api/role-templates", roleTemplateRoutes);
 
 // Project-namespaced routes (order matters — specific before generic)
 app.use("/api/projects", chatRoutes); // POST /api/projects/:id/chat

@@ -1,6 +1,7 @@
 const { generateText } = require("ai");
 const dbConnect = require("../db");
 const ChatSession = require("../models/ChatSession");
+const { extractTextFromBuffer } = require("../lib/parser");
 const {
   ASSISTANT_SYSTEM_PROMPT,
   INLINE_GENERATION_PROMPT,
@@ -17,12 +18,26 @@ const {
  * Builds a markdown table from inline-generation JSON rows.
  * Returns the table string, ready to be sent as a chat message.
  */
-function buildMarkdownTable(parsed) {
+function buildMarkdownTable(parsed, userConstraints = "none") {
   const { type, subject, rows } = parsed;
 
   if (!rows || !Array.isArray(rows) || rows.length === 0) {
     return `No data was generated for "${subject}".`;
   }
+
+  let constraintPrefix = "";
+  if (userConstraints && userConstraints.toLowerCase() !== "none") {
+    const lower = userConstraints.toLowerCase();
+    if (lower.includes("negative")) constraintPrefix = "Negative ";
+    else if (lower.includes("positive")) constraintPrefix = "Positive ";
+    else if (lower.includes("edge")) constraintPrefix = "Edge Case ";
+    else if (lower.includes("security")) constraintPrefix = "Security ";
+  }
+
+  const subjectSuffix =
+    subject && subject.toLowerCase() !== "none" && subject.trim() !== ""
+      ? ` — ${subject}`
+      : "";
 
   if (type === "testcase") {
     const header =
@@ -34,7 +49,7 @@ function buildMarkdownTable(parsed) {
           `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.preconditions || ""} | ${r.steps || ""} | ${r.expectedResult || ""} | ${r.priority || ""} |`,
       )
       .join("\n");
-    return `### Test Cases — ${subject}\n\n${header}${body}`;
+    return `### ${constraintPrefix}Test Cases${subjectSuffix}\n\n${header}${body}`;
   }
 
   if (type === "bugreport") {
@@ -47,7 +62,7 @@ function buildMarkdownTable(parsed) {
           `| ${r.id || ""} | ${r.module || ""} | ${r.title || ""} | ${r.description || ""} | ${r.stepsToReproduce || ""} | ${r.expectedResult || ""} | ${r.actualResult || ""} | ${r.severity || ""} |`,
       )
       .join("\n");
-    return `### Bug Reports — ${subject}\n\n${header}${body}`;
+    return `### ${constraintPrefix}Bug Reports${subjectSuffix}\n\n${header}${body}`;
   }
 
   if (type === "usecase") {
@@ -60,7 +75,7 @@ function buildMarkdownTable(parsed) {
           `| ${r.id || ""} | ${r.module || ""} | ${r.name || ""} | ${r.actor || ""} | ${r.description || ""} | ${r.preconditions || ""} | ${r.mainFlow || ""} | ${r.alternateFlow || ""} |`,
       )
       .join("\n");
-    return `### Use Cases — ${subject}\n\n${header}${body}`;
+    return `### ${constraintPrefix}Use Cases${subjectSuffix}\n\n${header}${body}`;
   }
 
   return `Generated data for "${subject}" (unknown type).`;
@@ -161,17 +176,62 @@ exports.chat = async (req, res) => {
       });
     }
 
-    const chatHistory = session.messages.map((m) => ({
-      role: m.role === "ai" ? "assistant" : "user",
-      content: m.text,
-    }));
+    const fs = require("fs");
+    const path = require("path");
+    const debugLogPath = path.join(__dirname, "../../scratch/debug_chat.txt");
+    const logMsg = `[${new Date().toISOString()}] Incoming request. SessionID: ${incomingSessionId}\nBody: ${JSON.stringify(req.body)}\nFile: ${req.file ? JSON.stringify({ originalname: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype }) : "No file"}\n`;
+    fs.appendFileSync(debugLogPath, logMsg);
+
+    let fileContext = null;
+    if (req.file) {
+      const isImage = req.file.mimetype.startsWith("image/");
+      if (!isImage) {
+        try {
+          const extractedText = await extractTextFromBuffer(
+            req.file.buffer,
+            req.file.mimetype,
+            req.file.originalname,
+          );
+          fs.appendFileSync(debugLogPath, `Extracted Text Length: ${extractedText ? extractedText.length : 0}\n`);
+          if (extractedText && extractedText.trim()) {
+            fileContext = extractedText.trim();
+          }
+        } catch (err) {
+          fs.appendFileSync(debugLogPath, `Extraction Error: ${err.message}\n`);
+          console.error("[Assistant Chat File Extraction Error]:", err);
+        }
+      } else {
+        fileContext = `[Image Attached: ${req.file.originalname}]`;
+      }
+    }
+
+    const chatHistory = session.messages.map((m) => {
+      let content = m.text;
+      // Augment content with historical file attachments if present in metadata
+      if (m.data && m.data.fileContext) {
+        content = `[File Attachment Context]\nContent:\n${m.data.fileContext}\n\n---\n\nUser Request:\n${m.text}`;
+      }
+      return {
+        role: m.role === "ai" ? "assistant" : "user",
+        content,
+      };
+    });
+
+    let finalPromptContent = message;
+    if (fileContext) {
+      finalPromptContent = `[File Attachment Context]\nContent:\n${fileContext}\n\n---\n\nUser Request:\n${message}`;
+    }
 
     const groq = getNextGroqClient();
+
     const { text } = await fetchWithRetry(() =>
       generateText({
         model: groq("llama-3.3-70b-versatile"),
         system: ASSISTANT_SYSTEM_PROMPT,
-        messages: [...chatHistory, { role: "user", content: message }],
+        messages: [
+          ...chatHistory,
+          { role: "user", content: finalPromptContent },
+        ],
       }),
     );
 
@@ -243,7 +303,7 @@ exports.chat = async (req, res) => {
                   dataToInject,
                 ),
                 prompt: `Generate a ${artifactType} table for: ${subject}. User specific instructions: ${userConstraints}`,
-                temperature: 0.3,
+                temperature: isRevision ? 0.2 : 0.7, // Higher temperature for fresh results to promote diversity
                 maxOutputTokens: 8192,
               }),
             );
@@ -251,22 +311,36 @@ exports.chat = async (req, res) => {
             // Parse the structured JSON and convert to a markdown table
             const tableJson = safeParseJSON(tableText);
             if (tableJson && tableJson.rows) {
-              aiResponse = buildMarkdownTable(tableJson);
+              const tableMarkdown = buildMarkdownTable(
+                tableJson,
+                userConstraints,
+              );
+              aiResponse = `${inlineText}\n\n${tableMarkdown}`;
             } else {
               aiResponse = `I could not generate a table for "${subject}". Please try again with a more specific description.`;
             }
           } catch (innerErr) {
-            console.error("[inline-generate] Failed on second AI call:", innerErr);
+            console.error(
+              "[inline-generate] Failed on second AI call:",
+              innerErr,
+            );
             aiResponse = `Failed to generate inline table for ${subject}. Server error.`;
           }
         }
       } catch (err) {
-        console.error("[assistant action parser] Failed during execution:", err);
+        console.error(
+          "[assistant action parser] Failed during execution:",
+          err,
+        );
         // Revert to plain string if it partially modified
       }
     }
 
-    session.messages.push({ role: "user", text: message });
+    session.messages.push({
+      role: "user",
+      text: message,
+      data: fileContext ? { fileContext } : undefined,
+    });
     session.messages.push({ role: "ai", text: aiResponse });
     session.lastMessageAt = new Date();
     await session.save();
@@ -336,11 +410,11 @@ exports.deleteSession = async (req, res) => {
 exports.getHistory = async (req, res) => {
   try {
     const userId = req.session.userId || req.session.id;
-    await dbConnect();
     const history = await ChatSession.find({ userId })
       .select("_id title lastMessageAt")
       .sort({ lastMessageAt: -1 })
-      .limit(20);
+      .lean();
+
     return res.json(history);
   } catch (err) {
     res.status(500).json({ error: "Internal Server Error" });
@@ -498,8 +572,9 @@ exports.exportArtifacts = async (req, res) => {
 
       // 3. Map distinct model fields
       if (artifactType === "testcase") {
+        doc.description = raw.description || title;
         doc.preconditions = raw.preconditions || "";
-        doc.steps = raw.steps || "";
+        doc.steps = raw.steps || raw.stepsToReproduce || "";
         doc.expectedResult = raw.expectedResult || "";
         doc.priority = raw.priority || "Medium";
         doc.status = raw.status || "Pending";

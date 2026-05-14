@@ -288,6 +288,7 @@ export default function StatusConfigsPage() {
                       placeholder="Status name..."
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
+                      maxLength={24}
                       className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/40 transition-all shadow-sm"
                     />
                   </div>
@@ -445,10 +446,10 @@ export default function StatusConfigsPage() {
                 <td className="px-6 py-8 align-top text-center">
                   <div className="space-y-2 inline-block">
                     <div
-                      className="px-6 py-2.5 rounded-xl border shadow-sm transition-all"
+                      className="inline-flex items-center justify-center w-[160px] px-4 py-2.5 rounded-xl border shadow-sm transition-all overflow-hidden"
                       style={badgeStyle}
                     >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em]">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] truncate max-w-full block text-center">
                         {newName || "Preview"}
                       </span>
                     </div>
@@ -504,7 +505,10 @@ export default function StatusConfigsPage() {
                     className="group hover:bg-brand/5 transition-all cursor-default"
                   >
                     <td className="px-6 py-5">
-                      <span className="text-sm font-semibold text-foreground uppercase tracking-tight">
+                      <span
+                        className="text-sm font-semibold text-foreground uppercase tracking-tight block max-w-[200px] truncate"
+                        title={config.name}
+                      >
                         {config.name}
                       </span>
                     </td>
@@ -519,12 +523,15 @@ export default function StatusConfigsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-5 text-center">
-                      <span
-                        className="px-4 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest border inline-block shadow-sm"
+                      <div
+                        className="inline-flex items-center justify-center w-[130px] px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest border shadow-sm align-middle overflow-hidden"
                         style={styleObj}
+                        title={config.name}
                       >
-                        {config.name}
-                      </span>
+                        <span className="truncate max-w-full block text-center">
+                          {config.name}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">

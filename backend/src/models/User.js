@@ -31,6 +31,10 @@ const UserSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    appliedTemplate: {
+      id: { type: String, default: null },
+      name: { type: String, default: null },
+    },
     id: {
       type: String,
       trim: true,

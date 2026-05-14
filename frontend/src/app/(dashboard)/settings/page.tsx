@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Settings2,
@@ -19,18 +19,35 @@ import { hasPermission } from "@/lib/rbac";
 export default function SettingsPage() {
   const { user } = useAuth();
 
-  const initialItems = [
-    {
-      label: "Bug Status",
-      description: "Manage global bug lifecycle states and transitions",
-      href: "/settings/statuses?type=bugs",
-      resource: "bug_status",
-      icon: Bug,
-      category: "Lifecycle",
-    },
-  ];
+  const [items, setItems] = useState<any[]>([]);
 
-  const [items, setItems] = useState(initialItems);
+  useEffect(() => {
+    const baseList = [
+      {
+        label: "Bug Status",
+        description: "Manage global bug lifecycle states and transitions",
+        href: "/settings/statuses?type=bugs",
+        resource: "bug_status",
+        icon: Bug,
+        category: "Lifecycle",
+      },
+    ];
+
+    if (
+      user &&
+      hasPermission(user.role, "write:users", user.customPermissions)
+    ) {
+      baseList.push({
+        label: "Roles & Permissions",
+        description: "Create and manage dynamic permission presets",
+        href: "/settings/roles",
+        resource: "role_templates",
+        icon: ShieldCheck,
+        category: "Security",
+      });
+    }
+    setItems(baseList);
+  }, [user]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);

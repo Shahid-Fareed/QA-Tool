@@ -24,7 +24,8 @@ async function getSession(): Promise<SessionUser | null> {
 export async function updateUserRoleAndPermissions(
   userId: string,
   role: Role,
-  customPermissions: Permission[]
+  customPermissions: Permission[],
+  appliedTemplate?: { id: string; name: string } | null
 ) {
   const session = await getSession();
   if (!session || !hasPermission(session.role, 'edit:users', session.customPermissions)) {
@@ -33,10 +34,13 @@ export async function updateUserRoleAndPermissions(
 
   try {
     const headers = await getAuthHeaders();
+    const body: any = { role, customPermissions };
+    if (appliedTemplate !== undefined) body.appliedTemplate = appliedTemplate;
+
     const res = await fetch(`${API_URL}/api/users/${userId}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ role, customPermissions }),
+      body: JSON.stringify(body),
       cache: 'no-store',
     });
 
@@ -69,6 +73,7 @@ export async function createUser(data: {
   role: Role;
   customPermissions: Permission[];
   employeeId?: string;
+  appliedTemplate?: { id: string | null; name: string | null } | null;
 }) {
   const session = await getSession();
   if (!session || !hasPermission(session.role, 'write:users', session.customPermissions)) {
